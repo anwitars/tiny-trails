@@ -3,7 +3,19 @@ name = "tiny-trails"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "tiny_trails"
+path = "src/lib.rs"
+
+[[bin]]
+name = "tiny-trails"
+path = "src/main.rs"
+
 [dependencies]
 axum = "0.8.1"
 tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread", "net"] }
 migrator = { git = "https://github.com/anwitars/migrator", branch = "master" }
+sqlx = { version = "0.8.3", features = ["runtime-tokio", "sqlite"] }
+clap = { version = "4.5.32", features = ["derive"] }
+log = "0.4.26"
+env_logger = "0.11.7"
