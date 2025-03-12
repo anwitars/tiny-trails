@@ -6,11 +6,12 @@ use axum::{
 
 use super::common::SameErrorResult;
 
-const NOT_FOUND_MSG: &str = "Trail ID has not been found";
+const NOT_FOUND_OR_EXPIRED_MSG: &str = "Trail ID has not been found";
 
 pub enum ResolveResponse {
     Found(String),
     NotFound,
+    Expired,
     InternalError(String),
 }
 
@@ -22,9 +23,9 @@ impl IntoResponse for ResolveResponse {
                 .header("Location", url)
                 .body("".into())
                 .unwrap(),
-            Self::NotFound => Response::builder()
+            Self::NotFound | Self::Expired => Response::builder()
                 .status(StatusCode::NOT_FOUND)
-                .body(NOT_FOUND_MSG.into())
+                .body(NOT_FOUND_OR_EXPIRED_MSG.into())
                 .unwrap(),
             Self::InternalError(msg) => Response::builder()
                 .status(StatusCode::INTERNAL_SERVER_ERROR)
@@ -52,7 +53,7 @@ pub async fn resolve(
 
     let long_url = sqlx::query!(
         r#"
-        SELECT long, expiration_hours
+        SELECT long, created_at, expiration_hours
         FROM trails
         WHERE short = ?
         "#,
@@ -65,12 +66,13 @@ pub async fn resolve(
 
     match long_url {
         Some(record) => {
-            let now = chrono::Utc::now();
-            let expires_at = now + chrono::Duration::hours(record.expiration_hours);
+            let now = chrono::Local::now().naive_local();
+            let expires_at = record.created_at + chrono::Duration::hours(record.expiration_hours);
 
             if expires_at < now {
-                log::debug!("Trail ID has expired: {}", trailid);
-                return Ok(ResolveResponse::NotFound);
+                let expired_ago = chrono_humanize::HumanTime::from(expires_at - now);
+                log::debug!("Trail ID '{}' expired {}", trailid, expired_ago);
+                return Ok(ResolveResponse::Expired);
             }
 
             Ok(ResolveResponse::Found(record.long))
