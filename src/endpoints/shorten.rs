@@ -104,5 +104,5 @@ pub async fn shorten(
     return_if_error!(result);
     return_if_error!(transaction.commit().await);
 
-    TTResponse::data(short)
+    TTResponse::Data(short)
 }

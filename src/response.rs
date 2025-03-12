@@ -6,7 +6,7 @@ macro_rules! return_if_errors {
     ($result:expr) => {
         match $result {
             Ok(value) => value,
-            Err(errors) => return TTResponse::errors(errors),
+            Err(errors) => return TTResponse::Errors(errors),
         }
     };
 }
@@ -16,44 +16,19 @@ macro_rules! return_if_error {
     ($result:expr) => {
         match $result {
             Ok(value) => value,
-            Err(error) => return TTResponse::error(error.into()),
+            Err(error) => return TTResponse::Error(error.into()),
         }
     };
 }
 
-#[derive(Debug, serde::Serialize)]
-pub struct TTResponse<T>
+#[derive(Debug)]
+pub enum TTResponse<T>
 where
     T: serde::Serialize,
 {
-    pub data: Option<T>,
-    pub errors: Option<Vec<crate::validation::Error>>,
-}
-
-impl<T> TTResponse<T>
-where
-    T: serde::Serialize,
-{
-    pub fn data(data: T) -> Self {
-        Self {
-            data: Some(data),
-            errors: None,
-        }
-    }
-
-    pub fn error(error: crate::validation::Error) -> Self {
-        Self {
-            data: None,
-            errors: Some(vec![error]),
-        }
-    }
-
-    pub fn errors(errors: Vec<crate::validation::Error>) -> Self {
-        Self {
-            data: None,
-            errors: Some(errors),
-        }
-    }
+    Data(T),
+    Error(crate::validation::Error),
+    Errors(Vec<crate::validation::Error>),
 }
 
 impl<T> IntoResponse for TTResponse<T>
@@ -61,8 +36,8 @@ where
     T: serde::Serialize,
 {
     fn into_response(self) -> axum::response::Response {
-        match (self.data, self.errors) {
-            (Some(data), None) => {
+        match self {
+            Self::Data(data) => {
                 let body = serde_json::json!({ "data": data });
                 axum::http::Response::builder()
                     .status(axum::http::StatusCode::OK)
@@ -70,34 +45,50 @@ where
                     .body(body.to_string().into())
                     .unwrap()
             }
-            (None, Some(errors)) => {
-                let internal_error = errors
-                    .iter()
-                    .find(|e| e.location.contains(&":internal:".to_string()));
-                let status = if internal_error.is_some() {
+            Self::Error(error) => {
+                let is_internal = error
+                    .location
+                    .first()
+                    .map_or(false, |loc| loc == ":internal:");
+                let status = if is_internal {
                     axum::http::StatusCode::INTERNAL_SERVER_ERROR
                 } else {
                     axum::http::StatusCode::BAD_REQUEST
                 };
 
-                let errors = match internal_error {
-                    Some(e) => vec![e.clone()],
-                    None => errors,
-                };
+                let body = serde_json::json!({ "errors": [error] });
 
-                let body = serde_json::json!({ "errors": errors });
                 axum::http::Response::builder()
                     .status(status)
                     .header("Content-Type", "application/json")
                     .body(body.to_string().into())
                     .unwrap()
             }
-            _ => {
-                // NOTE: This should never happen
-                let error = crate::validation::Error::internal_error("Invalid response");
-                let body = serde_json::json!({ "errors": [error] });
+            Self::Errors(errors) => {
+                let internal_error = errors.iter().find(|error| {
+                    error
+                        .location
+                        .first()
+                        .map_or(false, |loc| loc == ":internal:")
+                });
+
+                let status = if internal_error.is_some() {
+                    axum::http::StatusCode::INTERNAL_SERVER_ERROR
+                } else {
+                    axum::http::StatusCode::BAD_REQUEST
+                };
+
+                let errors = if let Some(internal_error) = internal_error {
+                    log::error!("Internal error: {:?}", internal_error);
+                    vec![internal_error.clone()]
+                } else {
+                    errors
+                };
+
+                let body = serde_json::json!({ "errors": errors });
+
                 axum::http::Response::builder()
-                    .status(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+                    .status(status)
                     .header("Content-Type", "application/json")
                     .body(body.to_string().into())
                     .unwrap()
