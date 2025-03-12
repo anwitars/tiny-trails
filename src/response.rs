@@ -1,26 +1,5 @@
 use axum::response::IntoResponse;
 
-// TODO: somehow support ? operator
-#[macro_export]
-macro_rules! return_if_errors {
-    ($result:expr) => {
-        match $result {
-            Ok(value) => value,
-            Err(errors) => return TTResponse::Errors(errors),
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! return_if_error {
-    ($result:expr) => {
-        match $result {
-            Ok(value) => value,
-            Err(error) => return TTResponse::Error(error.into()),
-        }
-    };
-}
-
 #[derive(Debug)]
 pub enum TTResponse<T>
 where
@@ -94,5 +73,23 @@ where
                     .unwrap()
             }
         }
+    }
+}
+
+impl<T> From<Vec<crate::validation::Error>> for TTResponse<T>
+where
+    T: serde::Serialize,
+{
+    fn from(errors: Vec<crate::validation::Error>) -> Self {
+        TTResponse::Errors(errors)
+    }
+}
+
+impl<T> From<sqlx::Error> for TTResponse<T>
+where
+    T: serde::Serialize,
+{
+    fn from(value: sqlx::Error) -> Self {
+        TTResponse::Error(value.into())
     }
 }

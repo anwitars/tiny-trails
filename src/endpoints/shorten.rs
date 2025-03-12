@@ -3,9 +3,10 @@ use axum::{extract::State, Json};
 use crate::{
     encoding::encode_base62,
     response::TTResponse,
-    return_if_error, return_if_errors,
     validation::{Error as TTError, TTInput},
 };
+
+use super::common::SameErrorResult;
 
 const SHORTEN_INPUT_FIELDS: [&str; 1] = ["url"];
 
@@ -66,15 +67,20 @@ impl TTInput for ShortenInput {
     }
 }
 
+#[derive(serde::Serialize)]
+pub struct ShortenResponseData {
+    pub trailid: String,
+}
+
 pub async fn shorten(
     State(pool): State<sqlx::SqlitePool>,
     Json(input_json): Json<serde_json::Value>,
-) -> TTResponse<String> {
-    let input = return_if_errors!(ShortenInput::from_json(&input_json));
+) -> SameErrorResult<TTResponse<ShortenResponseData>> {
+    let input = ShortenInput::from_json(&input_json)?;
 
-    let mut transaction = return_if_error!(pool.begin().await);
+    let mut transaction = pool.begin().await?;
 
-    let result = sqlx::query!(
+    let id = sqlx::query!(
         r#"
         INSERT INTO trails (short, long)
         VALUES (?, ?)
@@ -84,12 +90,12 @@ pub async fn shorten(
         input.url
     )
     .fetch_one(&mut *transaction)
-    .await;
+    .await?
+    .id;
 
-    let id = return_if_error!(result).id;
     let short = encode_base62(id as u64);
 
-    let result = sqlx::query!(
+    sqlx::query!(
         r#"
         UPDATE trails
         SET short = ?
@@ -99,10 +105,9 @@ pub async fn shorten(
         id
     )
     .execute(&mut *transaction)
-    .await;
+    .await?;
 
-    return_if_error!(result);
-    return_if_error!(transaction.commit().await);
+    transaction.commit().await?;
 
-    TTResponse::Data(short)
+    Ok(TTResponse::Data(ShortenResponseData { trailid: short }))
 }

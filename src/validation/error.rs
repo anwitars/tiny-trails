@@ -1,5 +1,7 @@
 use axum::response::IntoResponse;
 
+use crate::response::TTResponse;
+
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Error {
     pub message: String,
@@ -55,6 +57,15 @@ impl IntoResponse for Error {
             .header("Content-Type", "application/json")
             .body(body.into())
             .unwrap()
+    }
+}
+
+impl<T> Into<TTResponse<T>> for Error
+where
+    T: serde::Serialize,
+{
+    fn into(self) -> TTResponse<T> {
+        TTResponse::Error(self)
     }
 }
 
