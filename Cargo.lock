@@ -1913,8 +1913,11 @@ dependencies = [
  "env_logger",
  "log",
  "migrator",
+ "serde",
+ "serde_json",
  "sqlx",
  "tokio",
+ "url",
 ]
 
 [[package]]

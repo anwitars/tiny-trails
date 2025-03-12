@@ -1,4 +1,7 @@
-use axum::{routing::get, Router};
+use axum::{
+    routing::{get, post},
+    Router,
+};
 use clap::Parser;
 use tiny_trails::{endpoints, value_from_env};
 
@@ -60,6 +63,8 @@ async fn main() {
 
     let app = Router::new()
         .route("/ping", get(endpoints::ping))
+        .route("/shorten", post(endpoints::shorten))
+        .route("/t/{trailid}", get(endpoints::resolve))
         .with_state(pool);
 
     let listen_address = app_args.listen_address();
