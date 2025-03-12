@@ -1,0 +1,2 @@
+ALTER TABLE trails
+  ADD COLUMN expiration_hours INTEGER NOT NULL DEFAULT 1;

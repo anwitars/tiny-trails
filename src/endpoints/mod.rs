@@ -1,3 +1,4 @@
+mod common;
 mod ping;
 mod resolve;
 mod shorten;

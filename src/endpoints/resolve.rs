@@ -4,6 +4,8 @@ use axum::{
     response::IntoResponse,
 };
 
+use super::common::SameErrorResult;
+
 const NOT_FOUND_MSG: &str = "Trail ID has not been found";
 
 pub enum ResolveResponse {
@@ -41,7 +43,7 @@ impl From<sqlx::Error> for ResolveResponse {
 pub async fn resolve(
     State(pool): State<sqlx::SqlitePool>,
     Path(trailid): Path<String>,
-) -> Result<ResolveResponse, ResolveResponse> {
+) -> SameErrorResult<ResolveResponse> {
     log::debug!("Resolving trail ID: {}", trailid);
 
     if trailid.is_empty() {
@@ -50,7 +52,7 @@ pub async fn resolve(
 
     let long_url = sqlx::query!(
         r#"
-        SELECT long
+        SELECT long, expiration_hours
         FROM trails
         WHERE short = ?
         "#,
@@ -62,7 +64,20 @@ pub async fn resolve(
     log::debug!("Resolved trail ID: {:?}", long_url);
 
     match long_url {
-        Some(url) => Ok(ResolveResponse::Found(url.long)),
-        None => Ok(ResolveResponse::NotFound),
+        Some(record) => {
+            let now = chrono::Utc::now();
+            let expires_at = now + chrono::Duration::hours(record.expiration_hours);
+
+            if expires_at < now {
+                log::debug!("Trail ID has expired: {}", trailid);
+                return Ok(ResolveResponse::NotFound);
+            }
+
+            Ok(ResolveResponse::Found(record.long))
+        }
+        None => {
+            log::debug!("Trail ID not found: {}", trailid);
+            Ok(ResolveResponse::NotFound)
+        }
     }
 }
