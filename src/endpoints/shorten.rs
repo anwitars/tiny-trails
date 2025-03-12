@@ -8,7 +8,8 @@ use crate::{
 
 use super::common::SameErrorResult;
 
-const SHORTEN_INPUT_FIELDS: [&str; 1] = ["url"];
+const SHORTEN_INPUT_FIELDS: [&str; 2] = ["url", "expiration_hours"];
+const MAX_EXPIRATION_HOURS: u16 = 720;
 
 fn get_extra_fields_in_json(json: &serde_json::Value, fields: &[&str]) -> Option<Vec<String>> {
     let mut extra_fields = Vec::new();
@@ -27,6 +28,7 @@ fn get_extra_fields_in_json(json: &serde_json::Value, fields: &[&str]) -> Option
 
 struct ShortenInput {
     url: String,
+    expiration_hours: Option<u16>,
 }
 
 // TODO: maybe write a derive macro for this, or at least have helper functions
@@ -61,8 +63,38 @@ impl TTInput for ShortenInput {
 
         url::Url::parse(url).map_err(|_| vec![TTError::invalid_url(vec!["url".to_string()])])?;
 
+        let expiration_hours = json.get("expiration_hours");
+        let expiration_hours = match expiration_hours {
+            Some(expiration_hours) => {
+                let expiration_hours = expiration_hours.as_i64().ok_or_else(|| {
+                    vec![TTError::type_mismatch(
+                        "number",
+                        vec!["expiration_hours".to_string()],
+                    )]
+                })?;
+
+                if expiration_hours < 1 {
+                    return Err(vec![TTError::min_exceeded(
+                        1,
+                        vec!["expiration_hours".to_string()],
+                    )]);
+                }
+
+                if expiration_hours > MAX_EXPIRATION_HOURS as i64 {
+                    return Err(vec![TTError::max_exceeded(
+                        MAX_EXPIRATION_HOURS.into(),
+                        vec!["expiration_hours".to_string()],
+                    )]);
+                }
+
+                Some(expiration_hours as u16)
+            }
+            None => None,
+        };
+
         Ok(Self {
             url: url.to_string(),
+            expiration_hours,
         })
     }
 }
@@ -80,14 +112,16 @@ pub async fn shorten(
 
     let mut transaction = pool.begin().await?;
 
+    // TODO: somehow enforce to use database default for non-nullable Option fields
     let id = sqlx::query!(
         r#"
-        INSERT INTO trails (short, long)
-        VALUES (?, ?)
+        INSERT INTO trails (short, long, expiration_hours)
+        VALUES (?, ?, COALESCE(?, 1))
         RETURNING id
         "#,
         "temp",
-        input.url
+        input.url,
+        input.expiration_hours
     )
     .fetch_one(&mut *transaction)
     .await?

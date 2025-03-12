@@ -47,6 +47,20 @@ impl Error {
             location,
         }
     }
+
+    pub fn max_exceeded(max: i64, location: Vec<String>) -> Self {
+        Self {
+            message: format!("Value must be at most: {}", max),
+            location,
+        }
+    }
+
+    pub fn min_exceeded(min: i64, location: Vec<String>) -> Self {
+        Self {
+            message: format!("Value must be at least: {}", min),
+            location,
+        }
+    }
 }
 
 impl IntoResponse for Error {
