@@ -1,9 +1,5 @@
-use axum::{
-    routing::{get, post},
-    Router,
-};
 use clap::Parser;
-use tiny_trails::{endpoints, value_from_env};
+use tiny_trails::{app, value_from_env};
 
 #[derive(Debug, clap::Parser)]
 struct Cli {
@@ -61,16 +57,10 @@ async fn main() {
 
     let pool = sqlx::SqlitePool::connect(&app_args.database).await.unwrap();
 
-    let app = Router::new()
-        .route("/ping", get(endpoints::ping))
-        .route("/shorten", post(endpoints::shorten))
-        .route("/t/{trailid}", get(endpoints::resolve))
-        .with_state(pool);
-
     let listen_address = app_args.listen_address();
     log::info!("Listening on {}", listen_address);
 
     let listener = tokio::net::TcpListener::bind(listen_address).await.unwrap();
 
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app(pool)).await.unwrap();
 }

@@ -99,7 +99,7 @@ impl TTInput for ShortenInput {
     }
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct ShortenResponseData {
     pub trailid: String,
 }
@@ -144,4 +144,92 @@ pub async fn shorten(
     transaction.commit().await?;
 
     Ok(TTResponse::Data(ShortenResponseData { trailid: short }))
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::{
+        body::Body,
+        http::{Request, StatusCode},
+    };
+    use tower::ServiceExt;
+
+    use crate::{
+        app,
+        encoding::encode_base62,
+        endpoints::shorten::ShortenResponseData,
+        response::TTResponse,
+        utils::testing::{get_test_pool, init_logging, BodyDeserializeJson},
+        validation,
+    };
+
+    #[tokio::test]
+    async fn test_ok() {
+        init_logging();
+        let pool = get_test_pool().await;
+        let app = app(pool);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .header("Content-Type", "application/json")
+                    .uri("/shorten")
+                    .body(Body::from(r#"{"url":"https://example.com"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = response
+            .into_body()
+            .deserialize_json::<TTResponse<ShortenResponseData>>()
+            .await;
+
+        assert!(matches!(body, TTResponse::Data(_)));
+        let body = body.unwrap_data();
+
+        // this is the first trail in the database, so the expected id in db is 1
+        let expected_trail_id = encode_base62(1);
+
+        assert_eq!(body.trailid, expected_trail_id);
+    }
+
+    #[tokio::test]
+    async fn test_invalid_url() {
+        init_logging();
+        let pool = get_test_pool().await;
+        let app = app(pool);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .header("Content-Type", "application/json")
+                    .uri("/shorten")
+                    .body(Body::from(r#"{"url":"invalid"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+        let body = response
+            .into_body()
+            .deserialize_json::<TTResponse<()>>()
+            .await;
+
+        assert!(matches!(body, TTResponse::Errors(_)));
+        let errors = body.unwrap_errors();
+
+        assert!(errors.len() == 1);
+
+        let error = &errors[0];
+        let expected_error = validation::Error::invalid_url(vec!["url".to_string()]);
+
+        assert_eq!(error, &expected_error);
+    }
 }

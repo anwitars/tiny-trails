@@ -14,7 +14,6 @@ path = "src/main.rs"
 [dependencies]
 axum = "0.8.1"
 tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread", "net"] }
-migrator = { git = "https://github.com/anwitars/migrator", branch = "master" }
 sqlx = { version = "0.8.3", features = ["chrono", "runtime-tokio", "sqlite"] }
 clap = { version = "4.5.32", features = ["derive"] }
 log = "0.4.26"
@@ -24,3 +23,8 @@ serde_json = "1.0.140"
 url = "2.5.4"
 chrono = "0.4.40"
 chrono-humanize = "0.2.3"
+async-trait = "0.1.87"
+
+[dev-dependencies]
+http-body-util = "0.1.3"
+tower = "0.5.2"

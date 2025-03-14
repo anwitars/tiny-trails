@@ -76,6 +76,30 @@ where
     }
 }
 
+impl<'a, T> serde::Deserialize<'a> for TTResponse<T>
+where
+    T: serde::de::DeserializeOwned + serde::Serialize,
+{
+    fn deserialize<D>(deserializer: D) -> Result<TTResponse<T>, D::Error>
+    where
+        D: serde::Deserializer<'a>,
+    {
+        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
+
+        if value.get("data").is_some() {
+            let data =
+                serde_json::from_value(value["data"].clone()).map_err(serde::de::Error::custom)?;
+            Ok(TTResponse::Data(data))
+        } else if value.get("errors").is_some() {
+            let errors = serde_json::from_value(value["errors"].clone())
+                .map_err(serde::de::Error::custom)?;
+            Ok(TTResponse::Errors(errors))
+        } else {
+            Err(serde::de::Error::custom("Invalid response"))
+        }
+    }
+}
+
 impl<T> From<Vec<crate::validation::Error>> for TTResponse<T>
 where
     T: serde::Serialize,
@@ -91,5 +115,25 @@ where
 {
     fn from(value: sqlx::Error) -> Self {
         TTResponse::Error(value.into())
+    }
+}
+
+impl<T> TTResponse<T>
+where
+    T: serde::Serialize,
+{
+    pub fn unwrap_data(self) -> T {
+        match self {
+            Self::Data(data) => data,
+            _ => panic!("Expected TTResponse::Data"),
+        }
+    }
+
+    pub fn unwrap_errors(self) -> Vec<crate::validation::Error> {
+        match self {
+            Self::Errors(errors) => errors,
+            Self::Error(error) => vec![error],
+            Self::Data(_) => panic!("Expected TTResponse::Errors or TTResponse::Error"),
+        }
     }
 }

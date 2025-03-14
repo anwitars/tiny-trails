@@ -66,7 +66,7 @@ pub async fn resolve(
 
     match long_url {
         Some(record) => {
-            let now = chrono::Local::now().naive_local();
+            let now = chrono::Utc::now().naive_utc();
             let expires_at = record.created_at + chrono::Duration::hours(record.expiration_hours);
 
             if expires_at < now {
@@ -81,5 +81,103 @@ pub async fn resolve(
             log::debug!("Trail ID not found: {}", trailid);
             Ok(ResolveResponse::NotFound)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::{
+        body::Body,
+        http::{Request, StatusCode},
+    };
+    use tower::ServiceExt;
+
+    use crate::{
+        app,
+        utils::testing::{get_test_pool, init_logging},
+    };
+
+    #[tokio::test]
+    async fn test_resolve() {
+        init_logging();
+        let pool = get_test_pool().await;
+
+        sqlx::query!(
+            r#"
+            INSERT INTO trails (short, long, expiration_hours)
+            VALUES ('test', 'https://example.com', 1)
+            "#
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let app = app(pool);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/t/test")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::FOUND);
+
+        let location = response.headers().get("Location").unwrap();
+        assert_eq!(location, "https://example.com");
+    }
+
+    #[tokio::test]
+    async fn test_not_found() {
+        init_logging();
+        let pool = get_test_pool().await;
+        let app = app(pool);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/t/notexists")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn test_expired() {
+        init_logging();
+        let pool = get_test_pool().await;
+
+        let created_at = chrono::Utc::now().naive_utc() - chrono::Duration::hours(2);
+        sqlx::query!(
+            r#"
+            INSERT INTO trails (short, long, expiration_hours, created_at)
+            VALUES ('expired', 'https://example.com', 1, ?)
+            "#,
+            created_at
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let app = app(pool);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/t/expired")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 }

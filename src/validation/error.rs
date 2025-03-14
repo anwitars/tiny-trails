@@ -2,7 +2,8 @@ use axum::response::IntoResponse;
 
 use crate::response::TTResponse;
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct Error {
     pub message: String,
     pub location: Vec<String>,
