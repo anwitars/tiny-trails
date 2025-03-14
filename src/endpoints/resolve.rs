@@ -6,7 +6,7 @@ use axum::{
 
 use super::common::SameErrorResult;
 
-const NOT_FOUND_OR_EXPIRED_MSG: &str = "Trail ID has not been found";
+const NOT_FOUND_OR_EXPIRED_MSG: &str = "Trail ID has not been found or has expired";
 
 pub enum ResolveResponse {
     Found(String),
