@@ -1,5 +1,5 @@
 use clap::Parser;
-use tiny_trails::{app, value_from_env};
+use tiny_trails::{app, utils::env::TT_ENV_PREFIX, value_from_env};
 
 #[derive(Debug, clap::Parser)]
 struct Cli {

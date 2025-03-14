@@ -24,6 +24,9 @@ url = "2.5.4"
 chrono = "0.4.40"
 chrono-humanize = "0.2.3"
 async-trait = "0.1.87"
+sha2 = "0.10.8"
+hex = "0.4.3"
+constcat = "0.6.0"
 
 [dev-dependencies]
 http-body-util = "0.1.3"

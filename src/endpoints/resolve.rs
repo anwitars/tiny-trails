@@ -1,10 +1,11 @@
+use super::common::SameErrorResult;
+use crate::encoding::hash_with_env_salt;
 use axum::{
-    extract::{Path, State},
+    extract::{ConnectInfo, Path, State},
     http::{Response, StatusCode},
     response::IntoResponse,
 };
-
-use super::common::SameErrorResult;
+use std::net::SocketAddr;
 
 const NOT_FOUND_OR_EXPIRED_MSG: &str = "Trail ID has not been found or has expired";
 
@@ -44,6 +45,7 @@ impl From<sqlx::Error> for ResolveResponse {
 pub async fn resolve(
     State(pool): State<sqlx::SqlitePool>,
     Path(trailid): Path<String>,
+    ConnectInfo(address): ConnectInfo<SocketAddr>,
 ) -> SameErrorResult<ResolveResponse> {
     log::debug!("Resolving trail ID: {}", trailid);
 
@@ -53,7 +55,7 @@ pub async fn resolve(
 
     let long_url = sqlx::query!(
         r#"
-        SELECT long, created_at, expiration_hours
+        SELECT id, long, created_at, expiration_hours
         FROM trails
         WHERE short = ?
         "#,
@@ -61,8 +63,6 @@ pub async fn resolve(
     )
     .fetch_optional(&pool)
     .await?;
-
-    log::debug!("Resolved trail ID: {:?}", long_url);
 
     match long_url {
         Some(record) => {
@@ -74,6 +74,25 @@ pub async fn resolve(
                 log::debug!("Trail ID '{}' expired {}", trailid, expired_ago);
                 return Ok(ResolveResponse::Expired);
             }
+
+            let remote_addr = hash_with_env_salt(&address.to_string());
+            log::debug!(
+                "Resolved trail ID '{}' to '{}' for {}",
+                trailid,
+                record.long,
+                remote_addr
+            );
+
+            sqlx::query!(
+                r#"
+                INSERT INTO tracks (trail_id, hashed_ip, created_at) VALUES (?, ?, ?)
+                "#,
+                record.id,
+                remote_addr,
+                now
+            )
+            .execute(&pool)
+            .await?;
 
             Ok(ResolveResponse::Found(record.long))
         }
@@ -93,8 +112,9 @@ mod tests {
     use tower::ServiceExt;
 
     use crate::{
-        app,
-        utils::testing::{get_test_pool, init_logging},
+        app::{app, MOCK_IP},
+        encoding::hash_with_env_salt,
+        utils::testing::{get_test_pool, init_logging, BodyToString},
     };
 
     #[tokio::test]
@@ -112,7 +132,7 @@ mod tests {
         .await
         .unwrap();
 
-        let app = app(pool);
+        let app = app(pool.clone());
 
         let response = app
             .oneshot(
@@ -124,10 +144,35 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(response.status(), StatusCode::FOUND);
+        assert_eq!(
+            response.status(),
+            StatusCode::FOUND,
+            "{}",
+            response.into_body().to_string().await
+        );
 
         let location = response.headers().get("Location").unwrap();
         assert_eq!(location, "https://example.com");
+
+        let tracks = sqlx::query!(
+            r#"
+            SELECT trail_id, hashed_ip
+            FROM tracks
+            WHERE trail_id = 1
+            "#
+        )
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+
+        assert_eq!(tracks.len(), 1);
+        let track = &tracks[0];
+
+        assert_eq!(track.trail_id, 1);
+        assert_eq!(
+            track.hashed_ip,
+            Some(hash_with_env_salt(&MOCK_IP.to_string()))
+        );
     }
 
     #[tokio::test]
@@ -178,6 +223,11 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        assert_eq!(
+            response.status(),
+            StatusCode::NOT_FOUND,
+            "{}",
+            response.into_body().to_string().await
+        );
     }
 }
