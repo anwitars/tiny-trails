@@ -22,7 +22,7 @@ Information about each Trail can be viewed, such as the original URL the Trail p
 
 - [x] Shorten URLs
 - [x] Redirect to original URL
-- [ ] View Trail information (with limited statistics)
+- [x] View Trail information (with limited statistics)
 
 ### Authentication
 
@@ -32,7 +32,7 @@ Information about each Trail can be viewed, such as the original URL the Trail p
 
 ### Telemetry
 
-- [ ] Trail access (hashed IP addresses)
+- [x] Trail access (hashed IP addresses)
 - [ ] Access by country
 
 ### Features to rethink

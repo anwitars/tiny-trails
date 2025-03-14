@@ -19,6 +19,7 @@ pub fn app(pool: SqlitePool) -> Router<()> {
         .route("/ping", get(endpoints::ping))
         .route("/shorten", post(endpoints::shorten))
         .route("/t/{trailid}", get(endpoints::resolve))
+        .route("/info/{trailid}", get(endpoints::trail_info))
         .with_state(pool);
 
     if cfg!(test) {

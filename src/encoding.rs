@@ -28,10 +28,5 @@ pub fn hash_with_salt(salt: &str, data: &str) -> String {
 }
 
 pub fn hash_with_env_salt(data: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(env_with_prefix!("HASH_SALT"));
-    hasher.update(data);
-    let result = hasher.finalize();
-
-    hex::encode(result)
+    hash_with_salt(env_with_prefix!("HASH_SALT"), data)
 }

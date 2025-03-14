@@ -7,7 +7,7 @@ use axum::{
 };
 use std::net::SocketAddr;
 
-const NOT_FOUND_OR_EXPIRED_MSG: &str = "Trail ID has not been found or has expired";
+pub const TRAIL_NOT_FOUND_OR_EXPIRED_MSG: &str = "Trail ID has not been found or has expired";
 
 pub enum ResolveResponse {
     Found(String),
@@ -26,7 +26,7 @@ impl IntoResponse for ResolveResponse {
                 .unwrap(),
             Self::NotFound | Self::Expired => Response::builder()
                 .status(StatusCode::NOT_FOUND)
-                .body(NOT_FOUND_OR_EXPIRED_MSG.into())
+                .body(TRAIL_NOT_FOUND_OR_EXPIRED_MSG.into())
                 .unwrap(),
             Self::InternalError(msg) => Response::builder()
                 .status(StatusCode::INTERNAL_SERVER_ERROR)

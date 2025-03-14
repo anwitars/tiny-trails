@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+
 use clap::Parser;
 use tiny_trails::{app, utils::env::TT_ENV_PREFIX, value_from_env};
 
@@ -62,5 +64,10 @@ async fn main() {
 
     let listener = tokio::net::TcpListener::bind(listen_address).await.unwrap();
 
-    axum::serve(listener, app(pool)).await.unwrap();
+    axum::serve(
+        listener,
+        app(pool).into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .unwrap();
 }
