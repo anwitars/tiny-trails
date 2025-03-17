@@ -12,10 +12,8 @@ mod tests {
 
     use crate::{app, utils::testing::BodyToString};
 
-    #[tokio::test]
-    async fn test_ping() {
-        let pool = sqlx::SqlitePool::connect("sqlite::memory:").await.unwrap();
-
+    #[sqlx::test]
+    async fn test_ping(pool: sqlx::PgPool) {
         let app = app(pool);
 
         let response = app

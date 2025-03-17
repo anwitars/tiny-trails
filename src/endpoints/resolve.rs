@@ -43,7 +43,7 @@ impl From<sqlx::Error> for ResolveResponse {
 }
 
 pub async fn resolve(
-    State(pool): State<sqlx::SqlitePool>,
+    State(pool): State<sqlx::PgPool>,
     Path(trailid): Path<String>,
     ConnectInfo(address): ConnectInfo<SocketAddr>,
 ) -> SameErrorResult<ResolveResponse> {
@@ -57,7 +57,7 @@ pub async fn resolve(
         r#"
         SELECT id, long, created_at, expiration_hours
         FROM trails
-        WHERE short = ?
+        WHERE short = $1
         "#,
         trailid
     )
@@ -67,7 +67,8 @@ pub async fn resolve(
     match long_url {
         Some(record) => {
             let now = chrono::Utc::now().naive_utc();
-            let expires_at = record.created_at + chrono::Duration::hours(record.expiration_hours);
+            let expires_at =
+                record.created_at + chrono::Duration::hours(record.expiration_hours as i64);
 
             if expires_at < now {
                 let expired_ago = chrono_humanize::HumanTime::from(expires_at - now);
@@ -85,7 +86,7 @@ pub async fn resolve(
 
             sqlx::query!(
                 r#"
-                INSERT INTO tracks (trail_id, hashed_ip, created_at) VALUES (?, ?, ?)
+                INSERT INTO tracks (trail_id, hashed_ip, created_at) VALUES ($1, $2, $3)
                 "#,
                 record.id,
                 remote_addr,
@@ -114,14 +115,11 @@ mod tests {
     use crate::{
         app::{app, MOCK_IP},
         encoding::hash_with_env_salt,
-        utils::testing::{get_test_pool, init_logging, BodyToString},
+        utils::testing::BodyToString,
     };
 
-    #[tokio::test]
-    async fn test_resolve() {
-        init_logging();
-        let pool = get_test_pool().await;
-
+    #[sqlx::test]
+    async fn test_resolve(pool: sqlx::PgPool) {
         sqlx::query!(
             r#"
             INSERT INTO trails (short, long, expiration_hours)
@@ -175,10 +173,8 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn test_not_found() {
-        init_logging();
-        let pool = get_test_pool().await;
+    #[sqlx::test]
+    async fn test_not_found(pool: sqlx::PgPool) {
         let app = app(pool);
 
         let response = app
@@ -194,16 +190,13 @@ mod tests {
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
-    #[tokio::test]
-    async fn test_expired() {
-        init_logging();
-        let pool = get_test_pool().await;
-
+    #[sqlx::test]
+    async fn test_expired(pool: sqlx::PgPool) {
         let created_at = chrono::Utc::now().naive_utc() - chrono::Duration::hours(2);
         sqlx::query!(
             r#"
             INSERT INTO trails (short, long, expiration_hours, created_at)
-            VALUES ('expired', 'https://example.com', 1, ?)
+            VALUES ('expired', 'https://example.com', 1, $1)
             "#,
             created_at
         )

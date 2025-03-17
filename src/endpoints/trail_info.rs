@@ -12,7 +12,7 @@ pub struct TrailInfoResponseData {
     pub trailid: String,
     pub long: String,
     pub created_at: String,
-    pub expiration_hours: i64,
+    pub expiration_hours: i32,
     pub expires_at: String,
     pub unique_tracks: i64,
     pub total_tracks: i64,
@@ -42,14 +42,14 @@ impl From<sqlx::Error> for TrailInfoResponse {
 }
 
 pub async fn trail_info(
-    State(pool): State<sqlx::SqlitePool>,
+    State(pool): State<sqlx::PgPool>,
     Path(trailid): Path<String>,
 ) -> SameErrorResult<TrailInfoResponse> {
     let trail = sqlx::query!(
         r#"
         SELECT id, long, created_at, expiration_hours
         FROM trails
-        WHERE short = ?
+        WHERE short = $1
         "#,
         trailid
     )
@@ -64,10 +64,10 @@ pub async fn trail_info(
     let track_info = sqlx::query!(
         r#"
         SELECT
-            COUNT(DISTINCT CASE WHEN hashed_ip IS NULL THEN rowid ELSE hashed_ip END) AS unique_tracks,
+            COUNT(DISTINCT CASE WHEN hashed_ip IS NULL THEN id::text ELSE hashed_ip END) AS unique_tracks,
             COUNT(id) AS total_tracks
         FROM tracks
-        WHERE trail_id = ?
+        WHERE trail_id = $1
         "#,
         trail.id
     )
@@ -80,10 +80,10 @@ pub async fn trail_info(
             long: trail.long,
             created_at: trail.created_at.to_string(),
             expiration_hours: trail.expiration_hours,
-            expires_at: (trail.created_at + chrono::Duration::hours(trail.expiration_hours))
+            expires_at: (trail.created_at + chrono::Duration::hours(trail.expiration_hours as i64))
                 .to_string(),
-            unique_tracks: track_info.unique_tracks,
-            total_tracks: track_info.total_tracks,
+            unique_tracks: track_info.unique_tracks.unwrap_or(0),
+            total_tracks: track_info.total_tracks.unwrap_or(0),
         },
     )))
 }
@@ -99,14 +99,11 @@ mod tests {
 
     use crate::{
         app::app,
-        utils::testing::{get_test_pool, init_logging, BodyDeserializeJson, BodyToString},
+        utils::testing::{BodyDeserializeJson, BodyToString},
     };
 
-    #[tokio::test]
-    async fn test_ok() {
-        init_logging();
-        let pool = get_test_pool().await;
-
+    #[sqlx::test]
+    async fn test_ok(pool: sqlx::PgPool) {
         let trail_db_id = sqlx::query!(
             r#"
             INSERT INTO trails (short, long, expiration_hours)
@@ -119,13 +116,13 @@ mod tests {
         .unwrap()
         .id;
 
-        async fn insert_track(pool: &sqlx::SqlitePool, trail_db_id: i64, hashed_ip: Option<&str>) {
+        async fn insert_track(pool: &sqlx::PgPool, trail_db_id: i32, hashed_ip: Option<&str>) {
             let hashed_ip = hashed_ip.map(String::from);
 
             sqlx::query!(
                 r#"
                 INSERT INTO tracks (trail_id, hashed_ip)
-                VALUES (?, ?)
+                VALUES ($1, $2)
                 "#,
                 trail_db_id,
                 hashed_ip
@@ -146,7 +143,7 @@ mod tests {
         insert_track(&pool, trail_db_id, None).await;
         insert_track(&pool, trail_db_id, None).await;
 
-        let app = app(pool.clone());
+        let app = app(pool);
 
         let response = app
             .oneshot(
@@ -175,11 +172,9 @@ mod tests {
         assert_eq!(body.total_tracks, 9);
     }
 
-    #[tokio::test]
-    async fn test_not_found() {
-        init_logging();
-        let pool = get_test_pool().await;
-        let app = app(pool.clone());
+    #[sqlx::test]
+    async fn test_not_found(pool: sqlx::PgPool) {
+        let app = app(pool);
 
         let response = app
             .oneshot(

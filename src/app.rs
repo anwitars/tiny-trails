@@ -5,7 +5,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 
 // Only used for testing, but can not compile only in test mode, because of runtime checks in app
 // function
@@ -14,7 +14,7 @@ pub const MOCK_IP: SocketAddr = SocketAddr::V4(std::net::SocketAddrV4::new(
     3000,
 ));
 
-pub fn app(pool: SqlitePool) -> Router<()> {
+pub fn app(pool: PgPool) -> Router<()> {
     let mut router = Router::new()
         .route("/ping", get(endpoints::ping))
         .route("/shorten", post(endpoints::shorten))

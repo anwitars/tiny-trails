@@ -105,7 +105,7 @@ pub struct ShortenResponseData {
 }
 
 pub async fn shorten(
-    State(pool): State<sqlx::SqlitePool>,
+    State(pool): State<sqlx::PgPool>,
     Json(input_json): Json<serde_json::Value>,
 ) -> SameErrorResult<TTResponse<ShortenResponseData>> {
     let input = ShortenInput::from_json(&input_json)?;
@@ -116,12 +116,12 @@ pub async fn shorten(
     let id = sqlx::query!(
         r#"
         INSERT INTO trails (short, long, expiration_hours)
-        VALUES (?, ?, COALESCE(?, 1))
+        VALUES ($1, $2, COALESCE($3, 1))
         RETURNING id
         "#,
         "temp",
         input.url,
-        input.expiration_hours
+        input.expiration_hours.map(|x| x as i32)
     )
     .fetch_one(&mut *transaction)
     .await?
@@ -132,8 +132,8 @@ pub async fn shorten(
     sqlx::query!(
         r#"
         UPDATE trails
-        SET short = ?
-        WHERE id = ?
+        SET short = $1
+        WHERE id = $2
         "#,
         short,
         id
@@ -155,18 +155,12 @@ mod tests {
     use tower::ServiceExt;
 
     use crate::{
-        app,
-        encoding::encode_base62,
-        endpoints::shorten::ShortenResponseData,
-        response::TTResponse,
-        utils::testing::{get_test_pool, init_logging, BodyDeserializeJson},
-        validation,
+        app, encoding::encode_base62, endpoints::shorten::ShortenResponseData,
+        response::TTResponse, utils::testing::BodyDeserializeJson, validation,
     };
 
-    #[tokio::test]
-    async fn test_ok() {
-        init_logging();
-        let pool = get_test_pool().await;
+    #[sqlx::test]
+    async fn test_ok(pool: sqlx::PgPool) {
         let app = app(pool);
 
         let response = app
@@ -197,10 +191,8 @@ mod tests {
         assert_eq!(body.trailid, expected_trail_id);
     }
 
-    #[tokio::test]
-    async fn test_invalid_url() {
-        init_logging();
-        let pool = get_test_pool().await;
+    #[sqlx::test]
+    async fn test_invalid_url(pool: sqlx::PgPool) {
         let app = app(pool);
 
         let response = app

@@ -57,7 +57,7 @@ async fn main() {
     let app_args = AppArgs::from_env_and_cli(&cli);
     log::debug!("App args: {:?}", app_args);
 
-    let pool = sqlx::SqlitePool::connect(&app_args.database).await.unwrap();
+    let pool = sqlx::PgPool::connect(&app_args.database).await.unwrap();
 
     let listen_address = app_args.listen_address();
     log::info!("Listening on {}", listen_address);
