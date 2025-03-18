@@ -1,0 +1,78 @@
+name: CI and Release
+
+on:
+  push:
+    branches:
+      - '*'
+    tags:
+      - 'v*'
+
+env:
+  APPLICATION_NAME: tiny-trails
+  DATABASE_URL: postgresql://test:test@localhost/tiny-trails-test
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        ports:
+          - "5432:5432"
+        options:
+          --health-cmd "pg_isready -U test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Create And Migrate Database
+        run: cargo install sqlx-cli --no-default-features -F postgres -F native-tls && sqlx database setup
+
+      - name: Run Tests
+        run: cargo test --verbose
+
+  release:
+    name: Build and Release
+    if: startsWith(github.ref, 'refs/tags/v')  # Only runs on tag pushes
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Version Application
+        run: |
+          VERSION=$(echo $GITHUB_REF | sed 's/refs\/tags\/v//')
+          sed -i "s/^version = .*/version = \"$VERSION\"/" Cargo.toml
+
+      - name: Build Application
+        run: cargo build --release
+
+      - name: Package Release Binary
+        run: |
+          mkdir release
+          cp target/release/$APPLICATION_NAME release/
+          tar -czf $APPLICATION_NAME.tar.gz release/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: $APPLICATION_NAME.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
