@@ -1,23 +1,5 @@
-use crate::utils::env::TT_ENV_PREFIX;
 use async_trait::async_trait;
 use http_body_util::BodyExt;
-
-use crate::env_with_prefix;
-
-pub async fn get_test_pool() -> sqlx::PgPool {
-    let pool = sqlx::PgPool::connect(env_with_prefix!("TEST_DATABASE_URL"))
-        .await
-        .unwrap();
-    sqlx::migrate!("./migrations").run(&pool).await.unwrap();
-    pool
-}
-
-pub fn init_logging() {
-    static INIT: std::sync::Once = std::sync::Once::new();
-    INIT.call_once(|| {
-        env_logger::init_from_env(env_logger::Env::default().default_filter_or("debug"));
-    });
-}
 
 #[async_trait]
 pub trait BodyDeserializeJson {
