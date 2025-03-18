@@ -67,6 +67,8 @@ async fn main() {
 
     let pool = sqlx::PgPool::connect(&app_args.database).await.unwrap();
 
+    sqlx::migrate!("./migrations").run(&pool).await.unwrap();
+
     let listen_address = app_args.listen_address();
     log::info!("Listening on {}", listen_address);
 
