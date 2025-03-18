@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 
 use clap::Parser;
 use tiny_trails::{app, utils::env::TT_ENV_PREFIX, value_from_env};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Debug, clap::Parser)]
 struct Cli {
@@ -51,7 +52,14 @@ impl AppArgs {
 
 #[tokio::main]
 async fn main() {
-    env_logger::init_from_env(env_logger::Env::default().default_filter_or("debug"));
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer())
+        .with(
+            tracing_subscriber::EnvFilter::builder()
+                .with_default_directive(tracing_subscriber::filter::LevelFilter::INFO.into())
+                .from_env_lossy(),
+        )
+        .init();
 
     let cli = Cli::parse();
     let app_args = AppArgs::from_env_and_cli(&cli);
