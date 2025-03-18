@@ -1,6 +1,6 @@
 # Tiny Trails
 
-Tiny Trails is a url shortener service that allows users to shorten long urls to a more manageable length. This service is built using Rust and currently uses SQLite as the database.
+Tiny Trails is a url shortener service that allows users to shorten long urls to a more manageable length. This service is built using Rust with PostgreSQL as the database.
 
 ## Why does this project exist?
 
