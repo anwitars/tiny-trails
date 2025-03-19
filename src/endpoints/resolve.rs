@@ -113,7 +113,7 @@ mod tests {
     use tower::ServiceExt;
 
     use crate::{
-        app::{app, MOCK_IP},
+        app::{MOCK_IP, app},
         encoding::hash_with_env_salt,
         utils::testing::BodyToString,
     };
@@ -122,8 +122,8 @@ mod tests {
     async fn test_resolve(pool: sqlx::PgPool) {
         sqlx::query!(
             r#"
-            INSERT INTO trails (short, long, expiration_hours)
-            VALUES ('test', 'https://example.com', 1)
+            INSERT INTO trails (short, long, expiration_hours, secret)
+            VALUES ('test', 'https://example.com', 1, '')
             "#
         )
         .execute(&pool)
@@ -195,8 +195,8 @@ mod tests {
         let created_at = chrono::Utc::now().naive_utc() - chrono::Duration::hours(2);
         sqlx::query!(
             r#"
-            INSERT INTO trails (short, long, expiration_hours, created_at)
-            VALUES ('expired', 'https://example.com', 1, $1)
+            INSERT INTO trails (short, long, expiration_hours, created_at, secret)
+            VALUES ('expired', 'https://example.com', 1, $1, '')
             "#,
             created_at
         )

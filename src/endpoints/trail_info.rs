@@ -1,5 +1,6 @@
 use axum::{
     extract::{Path, State},
+    http::HeaderMap,
     response::{IntoResponse, Response},
 };
 
@@ -7,15 +8,34 @@ use crate::response::TTResponse;
 
 use super::{common::SameErrorResult, resolve::TRAIL_NOT_FOUND_OR_EXPIRED_MSG};
 
+/// Fields that are returned only if the user is authenticated for the specific trail
+/// using their secret
+type OnlyWithAuth<T> = Option<T>;
+
+macro_rules! if_has_auth {
+    ($auth:ident, $value:expr) => {
+        if $auth {
+            let getter = || Some($value);
+            getter()
+        } else {
+            None
+        }
+    };
+}
+
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct TrailInfoResponseData {
     pub trailid: String,
     pub long: String,
-    pub created_at: String,
-    pub expiration_hours: i32,
-    pub expires_at: String,
     pub unique_tracks: i64,
     pub total_tracks: i64,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: OnlyWithAuth<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expiration_hours: OnlyWithAuth<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expires_at: OnlyWithAuth<String>,
 }
 
 pub enum TrailInfoResponse {
@@ -44,10 +64,11 @@ impl From<sqlx::Error> for TrailInfoResponse {
 pub async fn trail_info(
     State(pool): State<sqlx::PgPool>,
     Path(trailid): Path<String>,
+    headers: HeaderMap,
 ) -> SameErrorResult<TrailInfoResponse> {
     let trail = sqlx::query!(
         r#"
-        SELECT id, long, created_at, expiration_hours
+        SELECT id, long, created_at, expiration_hours, secret
         FROM trails
         WHERE short = $1
         "#,
@@ -60,6 +81,12 @@ pub async fn trail_info(
         return Ok(TrailInfoResponse::NotFound);
     }
     let trail = trail.unwrap();
+
+    let has_auth = headers.get("X-Trail-Secret").map_or(false, |secret| {
+        secret
+            .to_str()
+            .map_or(false, |secret| secret == trail.secret)
+    });
 
     let track_info = sqlx::query!(
         r#"
@@ -74,16 +101,23 @@ pub async fn trail_info(
     .fetch_one(&pool)
     .await?;
 
+    let created_at = if_has_auth!(has_auth, trail.created_at.to_string());
+    let expiration_hours = if_has_auth!(has_auth, trail.expiration_hours);
+    let expires_at = if_has_auth!(
+        has_auth,
+        (trail.created_at + chrono::Duration::hours(trail.expiration_hours as i64)).to_string()
+    );
+
     Ok(TrailInfoResponse::TTResponse(TTResponse::Data(
         TrailInfoResponseData {
             trailid,
             long: trail.long,
-            created_at: trail.created_at.to_string(),
-            expiration_hours: trail.expiration_hours,
-            expires_at: (trail.created_at + chrono::Duration::hours(trail.expiration_hours as i64))
-                .to_string(),
             unique_tracks: track_info.unique_tracks.unwrap_or(0),
             total_tracks: track_info.total_tracks.unwrap_or(0),
+
+            created_at,
+            expiration_hours,
+            expires_at,
         },
     )))
 }
@@ -102,16 +136,15 @@ mod tests {
         utils::testing::{BodyDeserializeJson, BodyToString},
     };
 
-    #[sqlx::test]
-    async fn test_ok(pool: sqlx::PgPool) {
+    async fn setup_db(pool: &sqlx::PgPool) {
         let trail_db_id = sqlx::query!(
             r#"
-            INSERT INTO trails (short, long, expiration_hours)
-            VALUES ('test', 'https://example.com', 1)
+            INSERT INTO trails (short, long, expiration_hours, secret)
+            VALUES ('test', 'https://example.com', 1, 'wow')
             RETURNING id
             "#
         )
-        .fetch_one(&pool)
+        .fetch_one(pool)
         .await
         .unwrap()
         .id;
@@ -132,16 +165,21 @@ mod tests {
             .unwrap();
         }
 
-        insert_track(&pool, trail_db_id, Some("one")).await;
-        insert_track(&pool, trail_db_id, Some("two")).await;
-        insert_track(&pool, trail_db_id, Some("two")).await;
-        insert_track(&pool, trail_db_id, Some("three")).await;
-        insert_track(&pool, trail_db_id, Some("three")).await;
-        insert_track(&pool, trail_db_id, Some("three")).await;
+        insert_track(pool, trail_db_id, Some("one")).await;
+        insert_track(pool, trail_db_id, Some("two")).await;
+        insert_track(pool, trail_db_id, Some("two")).await;
+        insert_track(pool, trail_db_id, Some("three")).await;
+        insert_track(pool, trail_db_id, Some("three")).await;
+        insert_track(pool, trail_db_id, Some("three")).await;
 
-        insert_track(&pool, trail_db_id, None).await;
-        insert_track(&pool, trail_db_id, None).await;
-        insert_track(&pool, trail_db_id, None).await;
+        insert_track(pool, trail_db_id, None).await;
+        insert_track(pool, trail_db_id, None).await;
+        insert_track(pool, trail_db_id, None).await;
+    }
+
+    #[sqlx::test]
+    async fn test_ok_without_secret(pool: sqlx::PgPool) {
+        setup_db(&pool).await;
 
         let app = app(pool);
 
@@ -167,9 +205,49 @@ mod tests {
 
         assert_eq!(body.trailid, "test");
         assert_eq!(body.long, "https://example.com");
-        assert_eq!(body.expiration_hours, 1);
         assert_eq!(body.unique_tracks, 6);
         assert_eq!(body.total_tracks, 9);
+
+        assert_eq!(body.expiration_hours, None);
+        assert_eq!(body.expires_at, None);
+        assert_eq!(body.created_at, None);
+    }
+
+    #[sqlx::test]
+    async fn test_ok_with_secret(pool: sqlx::PgPool) {
+        setup_db(&pool).await;
+
+        let app = app(pool);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .header("X-Trail-Secret", "wow")
+                    .uri("/info/test")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = response
+            .into_body()
+            .deserialize_json::<TTResponse<TrailInfoResponseData>>()
+            .await;
+
+        assert!(matches!(body, TTResponse::Data(_)));
+        let body = body.unwrap_data();
+
+        assert_eq!(body.trailid, "test");
+        assert_eq!(body.long, "https://example.com");
+        assert_eq!(body.unique_tracks, 6);
+        assert_eq!(body.total_tracks, 9);
+
+        assert_eq!(body.expiration_hours, Some(1));
+        assert!(body.expires_at.is_some());
+        assert!(body.created_at.is_some());
     }
 
     #[sqlx::test]

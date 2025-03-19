@@ -1,4 +1,4 @@
-use axum::{extract::State, Json};
+use axum::{Json, extract::State};
 
 use crate::{
     encoding::encode_base62,
@@ -10,6 +10,9 @@ use super::common::SameErrorResult;
 
 const SHORTEN_INPUT_FIELDS: [&str; 2] = ["url", "expiration_hours"];
 const MAX_EXPIRATION_HOURS: u16 = 720;
+
+const SECRET_LENGTH: usize = 40;
+const SECRET_ALPHABET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
 fn get_extra_fields_in_json(json: &serde_json::Value, fields: &[&str]) -> Option<Vec<String>> {
     let mut extra_fields = Vec::new();
@@ -102,6 +105,7 @@ impl TTInput for ShortenInput {
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct ShortenResponseData {
     pub trailid: String,
+    pub secret: String,
 }
 
 pub async fn shorten(
@@ -112,16 +116,19 @@ pub async fn shorten(
 
     let mut transaction = pool.begin().await?;
 
+    let secret = generate_secret();
+
     // TODO: somehow enforce to use database default for non-nullable Option fields
     let id = sqlx::query!(
         r#"
-        INSERT INTO trails (short, long, expiration_hours)
-        VALUES ($1, $2, COALESCE($3, 1))
+        INSERT INTO trails (short, long, expiration_hours, secret)
+        VALUES ($1, $2, COALESCE($3, 1), $4)
         RETURNING id
         "#,
         "temp",
         input.url,
-        input.expiration_hours.map(|x| x as i32)
+        input.expiration_hours.map(|x| x as i32),
+        secret
     )
     .fetch_one(&mut *transaction)
     .await?
@@ -143,7 +150,24 @@ pub async fn shorten(
 
     transaction.commit().await?;
 
-    Ok(TTResponse::Data(ShortenResponseData { trailid: short }))
+    Ok(TTResponse::Data(ShortenResponseData {
+        trailid: short,
+        secret,
+    }))
+}
+
+fn generate_secret() -> String {
+    use rand::Rng;
+
+    let mut rng = rand::rng();
+    let secret: String = (0..SECRET_LENGTH)
+        .map(|_| {
+            let idx = rng.random_range(0..SECRET_ALPHABET.len());
+            SECRET_ALPHABET[idx] as char
+        })
+        .collect();
+
+    secret
 }
 
 #[cfg(test)]
