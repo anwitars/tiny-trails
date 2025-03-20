@@ -2,8 +2,8 @@ use std::net::SocketAddr;
 
 use crate::endpoints;
 use axum::{
-    routing::{get, post},
     Router,
+    routing::{delete, get, post},
 };
 use sqlx::PgPool;
 
@@ -19,6 +19,7 @@ pub fn app(pool: PgPool) -> Router<()> {
         .route("/ping", get(endpoints::ping))
         .route("/shorten", post(endpoints::shorten))
         .route("/t/{trailid}", get(endpoints::resolve))
+        .route("/t/{trailid}", delete(endpoints::delete_trail))
         .route("/info/{trailid}", get(endpoints::trail_info))
         .with_state(pool);
 

@@ -6,7 +6,10 @@ use axum::{
 
 use crate::response::TTResponse;
 
-use super::{common::SameErrorResult, resolve::TRAIL_NOT_FOUND_OR_EXPIRED_MSG};
+use super::{
+    common::{SameErrorResult, TRAIL_SECRET_HEADER},
+    resolve::TRAIL_NOT_FOUND_OR_EXPIRED_MSG,
+};
 
 /// Fields that are returned only if the user is authenticated for the specific trail
 /// using their secret
@@ -82,7 +85,7 @@ pub async fn trail_info(
     }
     let trail = trail.unwrap();
 
-    let has_auth = headers.get("X-Trail-Secret").map_or(false, |secret| {
+    let has_auth = headers.get(TRAIL_SECRET_HEADER).map_or(false, |secret| {
         secret
             .to_str()
             .map_or(false, |secret| secret == trail.secret)
@@ -222,7 +225,7 @@ mod tests {
         let response = app
             .oneshot(
                 Request::builder()
-                    .header("X-Trail-Secret", "wow")
+                    .header(TRAIL_SECRET_HEADER, "wow")
                     .uri("/info/test")
                     .body(Body::empty())
                     .unwrap(),
