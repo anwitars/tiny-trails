@@ -1,7 +1,6 @@
 use sha2::{Digest, Sha256};
 
-use crate::env_with_prefix;
-use crate::utils::env::TT_ENV_PREFIX;
+use crate::prefixed_env;
 
 const ALPHABET: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
@@ -28,5 +27,5 @@ pub fn hash_with_salt(salt: &str, data: &str) -> String {
 }
 
 pub fn hash_with_env_salt(data: &str) -> String {
-    hash_with_salt(env_with_prefix!("HASH_SALT"), data)
+    hash_with_salt(prefixed_env!("HASH_SALT"), data)
 }

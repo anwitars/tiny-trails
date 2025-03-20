@@ -1,19 +1,18 @@
 use std::net::SocketAddr;
 
 use clap::Parser;
-use constcat::concat;
-use tiny_trails::{app, utils::env::TT_ENV_PREFIX};
+use tiny_trails::{app, prefixed_env};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Debug, clap::Parser)]
 struct AppArgs {
-    #[clap(long, default_value = "0.0.0.0", env = concat!(TT_ENV_PREFIX, "HOST"))]
+    #[clap(long, default_value = "0.0.0.0", env = prefixed_env!("HOST"))]
     pub host: String,
 
-    #[clap(short, long, default_value = "3000", env = concat!(TT_ENV_PREFIX, "PORT"))]
+    #[clap(short, long, default_value = "3000", env = prefixed_env!("PORT"))]
     pub port: u16,
 
-    #[clap(short, long, env = concat!(TT_ENV_PREFIX, "DATABASE"))]
+    #[clap(short, long, env = prefixed_env!("DATABASE"))]
     pub database: String,
 }
 
