@@ -35,6 +35,12 @@ Information about each Trail can be viewed, such as the original URL the Trail p
 - [x] Trail access (hashed IP addresses)
 - [ ] Access by country
 
+### Security
+
+- [ ] Rate limiting for creating trails
+- [ ] Rate limiting for accessing trails
+- [ ] Malicious URL detection
+
 ### Features to rethink
 
 - URLs should expire after a certain period of time not being accessed
