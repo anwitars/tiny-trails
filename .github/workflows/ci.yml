@@ -9,12 +9,13 @@ on:
 
 env:
   APPLICATION_NAME: tiny-trails
-  DATABASE_URL: postgresql://test:test@localhost/tiny-trails-test
 
 jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://test:test@localhost/tiny-trails-test
 
     services:
       postgres:
@@ -41,6 +42,15 @@ jobs:
       - name: Create And Migrate Database
         run: cargo install sqlx-cli --no-default-features -F postgres -F native-tls && sqlx database setup
 
+      - name: Cache Sqlx
+        run: cargo sqlx prepare
+
+      - name: Upload Sqlx Cache
+        uses: actions/upload-artifact@v4
+        with:
+          name: sqlx-cache
+          path: .sqlx
+
       - name: Run Tests
         run: cargo test --verbose
 
@@ -60,6 +70,12 @@ jobs:
         run: |
           VERSION=$(echo $GITHUB_REF | sed 's/refs\/tags\/v//')
           sed -i "s/^version = .*/version = \"$VERSION\"/" Cargo.toml
+
+      - name: Restore Sqlx Cache
+        uses: actions/download-artifact@v4
+        with:
+          name: sqlx-cache
+          path: .sqlx
 
       - name: Build Application
         run: cargo build --release
