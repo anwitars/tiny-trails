@@ -43,13 +43,21 @@ jobs:
         run: cargo install sqlx-cli --no-default-features -F postgres -F native-tls && sqlx database setup
 
       - name: Cache Sqlx
-        run: cargo sqlx prepare
+        run: |
+          cargo sqlx prepare
+          ls -la # Debugging
+
+      - name: Verify Sqlx Cache
+        run: |
+          ls -la # Debugging
+          ls -la .sqlx || echo "No Sqlx Cache Found"
 
       - name: Upload Sqlx Cache
         uses: actions/upload-artifact@v4
         with:
           name: sqlx-cache
           path: .sqlx
+          include-hidden-files: true
 
       - name: Run Tests
         run: cargo test --verbose
