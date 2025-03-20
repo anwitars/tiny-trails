@@ -37,8 +37,8 @@ Information about each Trail can be viewed, such as the original URL the Trail p
 
 ### Security
 
-- [ ] Rate limiting for creating trails
-- [ ] Rate limiting for accessing trails
+- [x] Rate limiting for creating trails
+- [x] Rate limiting for accessing trails
 - [ ] Malicious URL detection
 
 ### Features to rethink

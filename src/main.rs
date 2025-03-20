@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use clap::Parser;
-use tiny_trails::{app, prefixed_env};
+use tiny_trails::{app, prefixed_env, utils::start_rate_limiter};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Debug, clap::Parser)]
@@ -41,13 +41,19 @@ async fn main() {
     sqlx::migrate!("./migrations").run(&pool).await.unwrap();
 
     let listen_address = app_args.listen_address();
-    log::info!("Listening on {}", listen_address);
 
-    let listener = tokio::net::TcpListener::bind(listen_address).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(&listen_address)
+        .await
+        .unwrap();
+    let rate_limiter = start_rate_limiter();
+
+    log::info!("Listening on {}", listen_address);
 
     axum::serve(
         listener,
-        app(pool).into_make_service_with_connect_info::<SocketAddr>(),
+        app(pool)
+            .layer(rate_limiter)
+            .into_make_service_with_connect_info::<SocketAddr>(),
     )
     .await
     .unwrap();
