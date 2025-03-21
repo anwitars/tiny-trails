@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::HeaderMap,
     response::{IntoResponse, Response},
 };
@@ -14,6 +14,7 @@ use super::{
 /// Fields that are returned only if the user is authenticated for the specific trail
 /// using their secret
 type OnlyWithAuth<T> = Option<T>;
+type ResponseUtcTime = String;
 
 macro_rules! if_has_auth {
     ($auth:ident, $value:expr) => {
@@ -26,6 +27,12 @@ macro_rules! if_has_auth {
     };
 }
 
+#[derive(serde::Deserialize)]
+pub struct TrailInfoQueryParams {
+    #[serde(default, rename = "week_history")]
+    with_week_history: bool,
+}
+
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct TrailInfoResponseData {
     pub trailid: String,
@@ -34,11 +41,14 @@ pub struct TrailInfoResponseData {
     pub total_tracks: i64,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: OnlyWithAuth<String>,
+    pub created_at: OnlyWithAuth<ResponseUtcTime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expiration_hours: OnlyWithAuth<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub expires_at: OnlyWithAuth<String>,
+    pub expires_at: OnlyWithAuth<ResponseUtcTime>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub week_history: OnlyWithAuth<Vec<ResponseUtcTime>>,
 }
 
 pub enum TrailInfoResponse {
@@ -67,6 +77,7 @@ impl From<sqlx::Error> for TrailInfoResponse {
 pub async fn trail_info(
     State(pool): State<sqlx::PgPool>,
     Path(trailid): Path<String>,
+    Query(query_params): Query<TrailInfoQueryParams>,
     headers: HeaderMap,
 ) -> SameErrorResult<TrailInfoResponse> {
     let trail = sqlx::query!(
@@ -111,6 +122,27 @@ pub async fn trail_info(
         (trail.created_at + chrono::Duration::hours(trail.expiration_hours as i64)).to_string()
     );
 
+    let week_history = if has_auth && query_params.with_week_history {
+        let week_history = sqlx::query!(
+            r#"
+            SELECT created_at
+            FROM tracks
+            WHERE trail_id = $1 AND created_at > NOW() - INTERVAL '1 week'
+            ORDER BY created_at DESC
+            "#,
+            trail.id
+        )
+        .fetch_all(&pool)
+        .await?
+        .into_iter()
+        .map(|row| row.created_at.to_string())
+        .collect();
+
+        Some(week_history)
+    } else {
+        None
+    };
+
     Ok(TrailInfoResponse::TTResponse(TTResponse::Data(
         TrailInfoResponseData {
             trailid,
@@ -121,6 +153,8 @@ pub async fn trail_info(
             created_at,
             expiration_hours,
             expires_at,
+
+            week_history,
         },
     )))
 }
@@ -152,32 +186,44 @@ mod tests {
         .unwrap()
         .id;
 
-        async fn insert_track(pool: &sqlx::PgPool, trail_db_id: i32, hashed_ip: Option<&str>) {
+        async fn insert_track(
+            pool: &sqlx::PgPool,
+            trail_db_id: i32,
+            hashed_ip: Option<&str>,
+            created_at: Option<&chrono::DateTime<chrono::Utc>>,
+        ) {
             let hashed_ip = hashed_ip.map(String::from);
+            let created_at = created_at
+                .map(|dt| dt.naive_utc())
+                .unwrap_or_else(|| chrono::Utc::now().naive_utc());
 
             sqlx::query!(
                 r#"
-                INSERT INTO tracks (trail_id, hashed_ip)
-                VALUES ($1, $2)
+                INSERT INTO tracks (trail_id, hashed_ip, created_at)
+                VALUES ($1, $2, $3)
                 "#,
                 trail_db_id,
-                hashed_ip
+                hashed_ip,
+                created_at
             )
             .execute(pool)
             .await
             .unwrap();
         }
 
-        insert_track(pool, trail_db_id, Some("one")).await;
-        insert_track(pool, trail_db_id, Some("two")).await;
-        insert_track(pool, trail_db_id, Some("two")).await;
-        insert_track(pool, trail_db_id, Some("three")).await;
-        insert_track(pool, trail_db_id, Some("three")).await;
-        insert_track(pool, trail_db_id, Some("three")).await;
+        let more_than_one_week_ago = chrono::Utc::now() - chrono::Duration::weeks(2);
+        let more_than_one_week_ago = Some(&more_than_one_week_ago);
 
-        insert_track(pool, trail_db_id, None).await;
-        insert_track(pool, trail_db_id, None).await;
-        insert_track(pool, trail_db_id, None).await;
+        insert_track(pool, trail_db_id, Some("one"), None).await;
+        insert_track(pool, trail_db_id, Some("two"), None).await;
+        insert_track(pool, trail_db_id, Some("two"), None).await;
+        insert_track(pool, trail_db_id, Some("three"), None).await;
+        insert_track(pool, trail_db_id, Some("three"), None).await;
+        insert_track(pool, trail_db_id, Some("three"), more_than_one_week_ago).await;
+
+        insert_track(pool, trail_db_id, None, None).await;
+        insert_track(pool, trail_db_id, None, more_than_one_week_ago).await;
+        insert_track(pool, trail_db_id, None, more_than_one_week_ago).await;
     }
 
     #[sqlx::test]
@@ -214,6 +260,8 @@ mod tests {
         assert_eq!(body.expiration_hours, None);
         assert_eq!(body.expires_at, None);
         assert_eq!(body.created_at, None);
+
+        assert_eq!(body.week_history, None);
     }
 
     #[sqlx::test]
@@ -251,6 +299,8 @@ mod tests {
         assert_eq!(body.expiration_hours, Some(1));
         assert!(body.expires_at.is_some());
         assert!(body.created_at.is_some());
+
+        assert_eq!(body.week_history, None);
     }
 
     #[sqlx::test]
@@ -271,5 +321,44 @@ mod tests {
 
         let body = response.into_body().to_string().await;
         assert_eq!(body, TRAIL_NOT_FOUND_OR_EXPIRED_MSG);
+    }
+
+    #[sqlx::test]
+    async fn test_ok_with_week_history(pool: sqlx::PgPool) {
+        setup_db(&pool).await;
+
+        let app = app(pool);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .header(TRAIL_SECRET_HEADER, "wow")
+                    .uri("/info/test?week_history=true")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = response
+            .into_body()
+            .deserialize_json::<TTResponse<TrailInfoResponseData>>()
+            .await;
+
+        assert!(matches!(body, TTResponse::Data(_)));
+        let body = body.unwrap_data();
+
+        assert_eq!(body.trailid, "test");
+        assert_eq!(body.long, "https://example.com");
+        assert_eq!(body.unique_tracks, 6);
+        assert_eq!(body.total_tracks, 9);
+
+        assert_eq!(body.expiration_hours, Some(1));
+        assert!(body.expires_at.is_some());
+        assert!(body.created_at.is_some());
+
+        assert_eq!(body.week_history.map(|v| v.len()), Some(6));
     }
 }
