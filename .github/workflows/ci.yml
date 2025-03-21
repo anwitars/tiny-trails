@@ -9,6 +9,8 @@ on:
 
 env:
   APPLICATION_NAME: tiny-trails
+  DOCKER_REGISTRY: ghcr.io
+  DOCKER_IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   test:
@@ -101,3 +103,72 @@ jobs:
           body_path: NEWS
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-and-push-docker:
+    name: Build and Push Docker Images
+    if: startsWith(github.ref, 'refs/tags/v')  # Only runs on tag pushes
+    needs: release
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore Sqlx Cache
+        uses: actions/download-artifact@v4
+        with:
+          name: sqlx-cache
+          path: .sqlx
+
+      - name: Image Metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          flavor: |
+            latest=true
+          images: |
+            ${{ env.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Docker Image (amd64)
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64
+          context: .
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          push: true
+          file: ./dockerfiles/amd64
+
+      - name: Build and Push Docker Image (arm64)
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/arm64
+          context: .
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          push: true
+          file: ./dockerfiles/arm64
