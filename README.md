@@ -16,13 +16,15 @@ Tiny Trails does not provide user accounts, but instead each Trail has a secret 
 
 Information about each Trail can be viewed, such as the original URL the Trail points to and when was the Trail created. More detailed information is available to the owner of the Trail, such as the number of times the Trail has been accessed.
 
+Dynamic Trails will be implemented as well, allowing the user to create trails that resolves to different URLs based on specific conditions. These specific Trails will be clearly marked as dynamic in the endpoint (`/dt/<trailid>`) and its info (`/info/<trailid>`). The info will also return the conditions that the dynamic trail has, while also marking which conditions have been met by the current request, and what it would resolve to.
+
 ## Roadmap
 
 ### Basic Features
 
 - [x] Shorten URLs
 - [x] Redirect to original URL
-- [ ] Trail statistics
+- [x] Trail statistics
   - [x] Total access count
   - [x] Unique access count
   - [x] History of the last week
@@ -42,6 +44,12 @@ Information about each Trail can be viewed, such as the original URL the Trail p
 - [x] Rate limiting for creating trails
 - [x] Rate limiting for accessing trails
 - [ ] Malicious URL detection
+
+### Dynamic Trails
+
+- [ ] Header-based conditions
+- [ ] Datetime-based conditions
+- [ ] IP-based conditions
 
 ### Features to rethink
 
