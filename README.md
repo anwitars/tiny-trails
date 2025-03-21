@@ -43,7 +43,6 @@ Dynamic Trails will be implemented as well, allowing the user to create trails t
 
 - [x] Rate limiting for creating trails
 - [x] Rate limiting for accessing trails
-- [ ] Malicious URL detection
 
 ### Dynamic Trails
 
@@ -56,6 +55,10 @@ Dynamic Trails will be implemented as well, allowing the user to create trails t
 - URLs should expire after a certain period of time not being accessed
   - Currently they expire after `x` hours (default is 1)
 
+## About precautions
+
+The service has no right to judge whether a URL is safe, malicious or anything else. It is the user's responsibility to decide whether to access a shortened URL or not. Although I stand by the fact that we should make short URLs as safe as possible, so in the future I plan to develop other piece of software (e.g. browser extension) to scan and show the original URL before accessing it (either via a middle-page, or directly in the browser where the short url is found).
+
 ## Telemetry
 
 To provide a better service, Tiny Trails collects telemetry data. This includes:
@@ -64,3 +67,37 @@ To provide a better service, Tiny Trails collects telemetry data. This includes:
   - Both unique and total
 
 Trail access is counted by hashed IP addresses. This means that the service does not store any personal information about the user, but can determine if a user has accessed a trail before.
+
+## Usage
+
+### Building the project
+
+To build the project, you need to have Rust installed. You can install it by following the instructions on the [official website](https://www.rust-lang.org/tools/install).
+
+After installing Rust, you can build the project by running:
+
+```sh
+cargo build [--release]
+```
+
+And that is all it takes. The binary will be available at `./target/debug/tiny-trails` or `./target/release/tiny-trails`. To see what arguments you can pass to the binary, run:
+
+```sh
+tiny-trails --help
+```
+
+### Docker
+
+The docker image is available at my [GitHub Container Registry](https://github.com/anwitars/tiny-trails/pkgs/container/tiny-trails). You can pull the image by running:
+
+```sh
+docker pull ghcr.io/anwitars/tiny-trails:latest
+```
+
+To run the image, you can use the following command:
+
+```sh
+docker run -d -p <port>:3000 ghcr.io/anwitars/tiny-trails:latest
+```
+
+Replace `<port>` with the port you want the service to be available at.
