@@ -40,6 +40,7 @@ async fn main() {
         listener,
         app(pool)
             .layer(rate_limiter)
+            .layer(tower_http::trace::TraceLayer::new_for_http())
             .into_make_service_with_connect_info::<SocketAddr>(),
     )
     .await

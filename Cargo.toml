@@ -30,6 +30,7 @@ tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 rand = "0.9.0"
 tower_governor = "0.7.0"
 governor = "0.8.1"
+tower-http = { version = "0.6.2", features = ["trace"] }
 
 [dev-dependencies]
 http-body-util = "0.1.3"
