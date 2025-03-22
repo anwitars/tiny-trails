@@ -4,10 +4,6 @@ version = "0.0.0"
 edition = "2021"
 description = "Simple, fast, transparent URL shortener service."
 
-[lib]
-name = "tiny_trails"
-path = "src/lib.rs"
-
 [[bin]]
 name = "tiny-trails"
 path = "src/main.rs"
