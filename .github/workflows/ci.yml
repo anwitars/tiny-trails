@@ -99,7 +99,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: $APPLICATION_NAME.tar.gz
+          files: |
+            release/$APPLICATION_NAME.tar.gz
           body_path: NEWS
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
