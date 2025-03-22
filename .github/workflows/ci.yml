@@ -101,6 +101,7 @@ jobs:
         with:
           files: |
             release/$APPLICATION_NAME.tar.gz
+            LICENSE
           body_path: NEWS
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -101,3 +101,7 @@ docker run -d -p <port>:3000 ghcr.io/anwitars/tiny-trails:latest
 ```
 
 Replace `<port>` with the port you want the service to be available at.
+
+## License
+
+This project is licensed under MIT. See the [LICENSE](LICENSE) file for details.

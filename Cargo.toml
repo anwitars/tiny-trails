@@ -3,6 +3,8 @@ name = "tiny-trails"
 version = "0.0.0"
 edition = "2021"
 description = "Simple, fast, transparent URL shortener service."
+authors = ["anwitars <anwitarsbusiness@gmail.com>"]
+license = "MIT"
 
 [[bin]]
 name = "tiny-trails"
