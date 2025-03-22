@@ -66,10 +66,10 @@ pub async fn delete_trail(
     .fetch_optional(&pool)
     .await?;
 
-    if trail.is_none() {
-        return Ok(DeleteTrailResponse::NotFound);
-    }
-    let trail = trail.unwrap();
+    let trail = match trail {
+        Some(trail) => trail,
+        None => return Ok(DeleteTrailResponse::NotFound),
+    };
 
     let secret = match headers
         .get(TRAIL_SECRET_HEADER)

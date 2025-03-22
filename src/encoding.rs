@@ -4,6 +4,7 @@ use crate::prefixed_env;
 
 const ALPHABET: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
+/// Basic Base62 encoding function.
 pub fn encode_base62(mut number: u64) -> String {
     let mut result = String::new();
     let base = ALPHABET.len() as u64;
@@ -17,6 +18,7 @@ pub fn encode_base62(mut number: u64) -> String {
     result.chars().rev().collect()
 }
 
+/// Hashes the given data with the given salt using Sha256.
 pub fn hash_with_salt(salt: &str, data: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(salt);
@@ -26,6 +28,7 @@ pub fn hash_with_salt(salt: &str, data: &str) -> String {
     hex::encode(result)
 }
 
+/// Hashes the given data with the environment salt using Sha256.
 pub fn hash_with_env_salt(data: &str) -> String {
     hash_with_salt(prefixed_env!("HASH_SALT"), data)
 }

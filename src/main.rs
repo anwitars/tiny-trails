@@ -1,29 +1,12 @@
 use std::net::SocketAddr;
 
 use clap::Parser;
-use tiny_trails::{app, prefixed_env, utils::start_rate_limiter};
+use tiny_trails::{app, app_args::AppArgs, utils::start_rate_limiter};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
-#[derive(Debug, clap::Parser)]
-struct AppArgs {
-    #[clap(long, default_value = "0.0.0.0", env = prefixed_env!("HOST"))]
-    pub host: String,
-
-    #[clap(short, long, default_value = "3000", env = prefixed_env!("PORT"))]
-    pub port: u16,
-
-    #[clap(short, long, env = prefixed_env!("DATABASE"))]
-    pub database: String,
-}
-
-impl AppArgs {
-    pub fn listen_address(&self) -> String {
-        format!("{}:{}", self.host, self.port)
-    }
-}
 
 #[tokio::main]
 async fn main() {
+    // initialize the logger with INFO level by default
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())
         .with(
@@ -33,22 +16,26 @@ async fn main() {
         )
         .init();
 
+    // parse the command line arguments (with environment variables support)
     let app_args = AppArgs::parse();
-    log::debug!("App args: {:?}", app_args);
+    log::debug!("Application run with args: {:#?}", app_args);
 
+    // create a connection pool to the database and run the pending migrations
     let pool = sqlx::PgPool::connect(&app_args.database).await.unwrap();
-
     sqlx::migrate!("./migrations").run(&pool).await.unwrap();
 
+    // create a TCP listener and start the server
     let listen_address = app_args.listen_address();
-
     let listener = tokio::net::TcpListener::bind(&listen_address)
         .await
         .unwrap();
+
+    // start the rate limiter thread and get the tower layer as well
     let rate_limiter = start_rate_limiter();
 
     log::info!("Listening on {}", listen_address);
 
+    // serve the application
     axum::serve(
         listener,
         app(pool)

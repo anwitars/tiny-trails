@@ -14,6 +14,8 @@ use super::{
 /// Fields that are returned only if the user is authenticated for the specific trail
 /// using their secret
 type OnlyWithAuth<T> = Option<T>;
+
+/// Just to clarify that this is a UTC time string
 type ResponseUtcTime = String;
 
 macro_rules! if_has_auth {
@@ -91,10 +93,10 @@ pub async fn trail_info(
     .fetch_optional(&pool)
     .await?;
 
-    if trail.is_none() {
-        return Ok(TrailInfoResponse::NotFound);
-    }
-    let trail = trail.unwrap();
+    let trail = match trail {
+        Some(trail) => trail,
+        None => return Ok(TrailInfoResponse::NotFound),
+    };
 
     let has_auth = headers.get(TRAIL_SECRET_HEADER).map_or(false, |secret| {
         secret

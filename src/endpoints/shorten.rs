@@ -1,4 +1,4 @@
-use axum::{Json, extract::State};
+use axum::{extract::State, Json};
 
 use crate::{
     encoding::encode_base62,
@@ -156,6 +156,7 @@ pub async fn shorten(
     }))
 }
 
+/// Generate a secret that can be used to authenticate the owner of a trail.
 fn generate_secret() -> String {
     use rand::Rng;
 

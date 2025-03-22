@@ -2,10 +2,16 @@ use axum::response::IntoResponse;
 
 use crate::response::TTResponse;
 
+/// Unified error type for the application.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct Error {
+    /// English error message.
     pub message: String,
+
+    /// Location of the error in the JSON object.
+    ///
+    /// Example: `["user", "name"]`
     pub location: Vec<String>,
 }
 

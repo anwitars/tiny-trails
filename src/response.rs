@@ -1,13 +1,38 @@
 use axum::response::IntoResponse;
 
+use crate::validation;
+
+/// Unified response type for the application.
+///
+/// Example for a successful response:
+/// ```json
+/// {
+///    "data": {
+///        "id": 1,
+///        "name": "John Doe"
+///    }
+/// }
+/// ```
+///
+/// Example for an error response:
+/// ```json
+/// {
+///   "errors": [
+///       {
+///           "message": "Required field",
+///           "location": ["name"]
+///       }
+///   ]
+/// }
+/// ```
 #[derive(Debug)]
 pub enum TTResponse<T>
 where
     T: serde::Serialize,
 {
     Data(T),
-    Error(crate::validation::Error),
-    Errors(Vec<crate::validation::Error>),
+    Error(validation::Error),
+    Errors(Vec<validation::Error>),
 }
 
 impl<T> IntoResponse for TTResponse<T>
@@ -100,11 +125,11 @@ where
     }
 }
 
-impl<T> From<Vec<crate::validation::Error>> for TTResponse<T>
+impl<T> From<Vec<validation::Error>> for TTResponse<T>
 where
     T: serde::Serialize,
 {
-    fn from(errors: Vec<crate::validation::Error>) -> Self {
+    fn from(errors: Vec<validation::Error>) -> Self {
         TTResponse::Errors(errors)
     }
 }
@@ -122,6 +147,7 @@ impl<T> TTResponse<T>
 where
     T: serde::Serialize,
 {
+    /// Extracts the data from the response if the response is [TTResponse::Data].
     pub fn unwrap_data(self) -> T {
         match self {
             Self::Data(data) => data,
@@ -129,7 +155,8 @@ where
         }
     }
 
-    pub fn unwrap_errors(self) -> Vec<crate::validation::Error> {
+    /// Extracts the errors from the response if the response is [TTResponse::Error].
+    pub fn unwrap_errors(self) -> Vec<validation::Error> {
         match self {
             Self::Errors(errors) => errors,
             Self::Error(error) => vec![error],
