@@ -1,7 +1,11 @@
 use std::net::SocketAddr;
 
+use axum::http::{header, Method};
 use clap::Parser;
-use tiny_trails::{app, app_args::AppArgs, utils::start_rate_limiter};
+use tiny_trails::{
+    app, app_args::AppArgs, endpoints::TRAIL_SECRET_HEADER, utils::start_rate_limiter,
+};
+use tower_http::cors;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -40,9 +44,21 @@ async fn main() {
         listener,
         app(pool)
             .layer(rate_limiter)
+            .layer(get_cors_layer())
             .layer(tower_http::trace::TraceLayer::new_for_http())
             .into_make_service_with_connect_info::<SocketAddr>(),
     )
     .await
     .unwrap();
+}
+
+fn get_cors_layer() -> cors::CorsLayer {
+    cors::CorsLayer::new()
+        .allow_origin(cors::Any)
+        .allow_methods(vec![Method::GET, Method::POST, Method::DELETE])
+        .allow_headers([
+            header::CONTENT_TYPE,
+            TRAIL_SECRET_HEADER.parse::<header::HeaderName>().unwrap(),
+        ])
+        .max_age(std::time::Duration::from_secs(86400))
 }
