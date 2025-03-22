@@ -81,12 +81,12 @@ impl IntoResponse for Error {
     }
 }
 
-impl<T> Into<TTResponse<T>> for Error
+impl<T> From<Error> for TTResponse<T>
 where
     T: serde::Serialize,
 {
-    fn into(self) -> TTResponse<T> {
-        TTResponse::Error(self)
+    fn from(val: Error) -> Self {
+        TTResponse::Error(val)
     }
 }
 

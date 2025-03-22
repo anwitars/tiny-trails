@@ -98,10 +98,9 @@ pub async fn trail_info(
         None => return Ok(TrailInfoResponse::NotFound),
     };
 
-    let has_auth = headers.get(TRAIL_SECRET_HEADER).map_or(false, |secret| {
+    let has_auth = headers.get(TRAIL_SECRET_HEADER).is_some_and(|secret| {
         secret
-            .to_str()
-            .map_or(false, |secret| secret == trail.secret)
+            .to_str().is_ok_and(|secret| secret == trail.secret)
     });
 
     let track_info = sqlx::query!(

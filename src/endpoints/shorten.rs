@@ -22,11 +22,11 @@ fn get_extra_fields_in_json(json: &serde_json::Value, fields: &[&str]) -> Option
         }
     }
 
-    return if extra_fields.is_empty() {
+    if extra_fields.is_empty() {
         None
     } else {
         Some(extra_fields)
-    };
+    }
 }
 
 struct ShortenInput {

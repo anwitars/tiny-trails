@@ -52,8 +52,7 @@ where
             Self::Error(error) => {
                 let is_internal = error
                     .location
-                    .first()
-                    .map_or(false, |loc| loc == ":internal:");
+                    .first().is_some_and(|loc| loc == ":internal:");
                 let status = if is_internal {
                     axum::http::StatusCode::INTERNAL_SERVER_ERROR
                 } else {
@@ -72,8 +71,7 @@ where
                 let internal_error = errors.iter().find(|error| {
                     error
                         .location
-                        .first()
-                        .map_or(false, |loc| loc == ":internal:")
+                        .first().is_some_and(|loc| loc == ":internal:")
                 });
 
                 let status = if internal_error.is_some() {
