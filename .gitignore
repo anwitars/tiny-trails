@@ -1,2 +1,5 @@
 # pyenv
 .python-version
+
+# python caching
+__pycache__/
