@@ -1,9 +1,24 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 from string import ascii_lowercase, ascii_uppercase
 
 from pydantic import BaseModel, Field, HttpUrl
 
-in_memory_trails: dict[str, str] = {}
+
+@dataclass(frozen=True, eq=False)
+class Visit:
+    hashed_ip: str
+    created: datetime = field(default_factory=datetime.now)
+
+
+@dataclass
+class Trail:
+    url: str
+    visits: list[Visit] = field(default_factory=list)
+    created: datetime = field(default_factory=datetime.now)
+
+
+in_memory_trails: dict[str, Trail] = {}
 TRAIL_ID_ALPHABET = ascii_lowercase + ascii_uppercase
 
 
@@ -35,9 +50,9 @@ async def resolver(pave_input: PaveInput) -> PaveResponse:
     Paves a Trail for the given URL.
     """
 
-    trail_sequence_id = len(in_memory_trails) + 1
+    trail_sequence_id = len(in_memory_trails)
     trail_id = encode_base52(trail_sequence_id)
-    in_memory_trails[trail_id] = str(pave_input.url)
+    in_memory_trails[trail_id] = Trail(url=str(pave_input.url))
 
     return PaveResponse(
         trail_id=trail_id,
