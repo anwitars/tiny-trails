@@ -12,6 +12,13 @@ TRAIL_MAXIMUM_LIFETIME: Hours = 24 * 30
 TRAIL_TOKEN_HEADER = "X-Trail-Token"
 
 
+# probably we do not need to store more information about a peek, as it would probably be
+# automated, and scripts would peek trails
+@dataclass(frozen=True, eq=False)
+class Peek:
+    created: datetime = field(default_factory=datetime.now)
+
+
 @dataclass(frozen=True, eq=False)
 class Visit:
     hashed_ip: str
@@ -21,10 +28,12 @@ class Visit:
 @dataclass
 class Trail:
     url: str
-    visits: list[Visit] = field(default_factory=list)
     created: datetime = field(default_factory=datetime.now)
     lifetime: Hours = field(default=TRAIL_DEFAULT_LIFETIME)
     token: str = field(default_factory=generate_trail_token)
+
+    visits: list[Visit] = field(default_factory=list)
+    peeks: list[Peek] = field(default_factory=list)
 
     def is_expired(self, reference: datetime | None = None) -> bool:
         if reference is None:

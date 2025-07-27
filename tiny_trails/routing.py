@@ -3,7 +3,7 @@ from starlette.responses import PlainTextResponse, RedirectResponse
 
 
 def assign_routes(app: FastAPI):
-    from tiny_trails.endpoints import delete, info, pave, ping, traverse
+    from tiny_trails.endpoints import delete, info, pave, peek, ping, traverse
 
     app.add_api_route(
         "/ping",
@@ -36,4 +36,12 @@ def assign_routes(app: FastAPI):
         methods=["DELETE"],
         summary="Delete Trail by ID",
         status_code=204,
+    )
+
+    app.add_api_route(
+        "/peek/{trail_id}",
+        peek,
+        methods=["GET"],
+        summary="Peek a Trail by ID",
+        response_class=PlainTextResponse,
     )
