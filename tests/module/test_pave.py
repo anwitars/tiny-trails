@@ -1,9 +1,10 @@
 from fastapi.testclient import TestClient
 from mock import patch
 
-from tiny_trails.endpoints.common.models import (
+from tiny_trails.endpoints.common import (
     TRAIL_MAXIMUM_LIFETIME,
     TRAIL_MINIMUM_LIFETIME,
+    Trail,
 )
 
 
@@ -28,10 +29,12 @@ def test_ok(client: TestClient):
         data = response.json()
         assert data
         assert data["trail_id"] == "a"
+        assert data["token"]
 
-        trail = mock_trails["a"]
+        trail: Trail = mock_trails["a"]
         assert trail.url == "https://google.com/"
         assert trail.lifetime == 24
+        assert trail.token
 
 
 def test_validation(client: TestClient):

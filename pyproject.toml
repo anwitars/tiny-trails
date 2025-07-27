@@ -6,7 +6,7 @@ authors = [
     {name = "anwitars"}
 ]
 requires-python = ">=3.12"
-dependencies = ["pydantic (>=2.11.7,<3.0.0)", "fastapi[standard] (>=0.116.1,<0.117.0)"]
+dependencies = ["pydantic (>=2.11.7,<3.0.0)", "fastapi[standard] (>=0.116.1,<0.117.0)", "uuid (>=1.30,<2.0)"]
 
 
 [build-system]

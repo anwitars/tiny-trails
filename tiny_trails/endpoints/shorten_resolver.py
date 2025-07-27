@@ -40,8 +40,13 @@ class PaveInput(BaseModel):
 
 @dataclass
 class PaveResponse:
-    trail_id: str
-    message: str
+    trail_id: str = Field(description="The unique identifier for the paved Trail.")
+    token: str = Field(
+        description="The unique token for the Trail. This grants access to restricted operations."
+    )
+    message: str = Field(
+        description="A message indicating the result of the operation."
+    )
 
 
 async def resolver(pave_input: PaveInput) -> PaveResponse:
@@ -51,12 +56,14 @@ async def resolver(pave_input: PaveInput) -> PaveResponse:
 
     trail_sequence_id = len(in_memory_trails)
     trail_id = encode_base52(trail_sequence_id)
-    in_memory_trails[trail_id] = Trail(
+    trail = Trail(
         url=str(pave_input.url),
         lifetime=pave_input.lifetime,
     )
+    in_memory_trails[trail_id] = trail
 
     return PaveResponse(
         trail_id=trail_id,
         message=f"Trail paved successfully with ID: {trail_id}",
+        token=trail.token,
     )

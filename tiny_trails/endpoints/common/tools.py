@@ -1,4 +1,5 @@
 from hashlib import sha256
+from uuid import uuid4
 
 from fastapi import Request
 
@@ -12,3 +13,7 @@ def get_ip_from_request(request: Request) -> str | None:
         return request.client.host
 
     return None
+
+
+def generate_trail_token() -> str:
+    return uuid4().hex
