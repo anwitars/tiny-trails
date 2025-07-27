@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from fastapi.exceptions import HTTPException
+from tiny_trails.endpoints.common.errors import TrailNotFoundOrExpiredError
 
 from .shorten_resolver import in_memory_trails
 
@@ -21,8 +21,8 @@ class TrailInfo:
 
 async def resolver(trail_id: str) -> TrailInfo:
     trail = in_memory_trails.get(trail_id)
-    if trail is None:
-        raise HTTPException(404, "Trail is not found")
+    if trail is None or trail.is_expired():
+        raise TrailNotFoundOrExpiredError()
 
     all_visits = len(trail.visits)
     unique_visits = len(set(visit.hashed_ip for visit in trail.visits))
