@@ -1,14 +1,11 @@
-from hashlib import sha256
-
 from fastapi import Request
 from fastapi.exceptions import HTTPException
 from starlette.responses import RedirectResponse
 
-from .shorten_resolver import Visit, in_memory_trails
+from tiny_trails.endpoints.common.models import Visit
+from tiny_trails.endpoints.common.tools import get_ip_from_request, hash_ip
 
-
-def hash_ip(ip: str) -> str:
-    return sha256(ip.encode()).hexdigest()
+from .shorten_resolver import in_memory_trails
 
 
 async def resolver(trail_id: str, request: Request):
@@ -16,8 +13,8 @@ async def resolver(trail_id: str, request: Request):
     if trail is None:
         raise HTTPException(status_code=404, detail="Trail not found")
 
-    if client := request.client:
-        visit = Visit(hashed_ip=hash_ip(client.host))
+    if ip := get_ip_from_request(request):
+        visit = Visit(hashed_ip=hash_ip(ip))
         in_memory_trails[trail_id].visits.append(visit)
 
     return RedirectResponse(trail.url, status_code=302)

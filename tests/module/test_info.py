@@ -1,7 +1,8 @@
 from fastapi.testclient import TestClient
 from mock import patch
 
-from tiny_trails.endpoints.shorten_resolver import Trail, Visit
+from tiny_trails.endpoints.common.models import Visit
+from tiny_trails.endpoints.shorten_resolver import Trail
 
 
 def test_ok(client: TestClient):

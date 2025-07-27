@@ -1,22 +1,9 @@
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass
 from string import ascii_lowercase, ascii_uppercase
 
 from pydantic import BaseModel, Field, HttpUrl
 
-
-@dataclass(frozen=True, eq=False)
-class Visit:
-    hashed_ip: str
-    created: datetime = field(default_factory=datetime.now)
-
-
-@dataclass
-class Trail:
-    url: str
-    visits: list[Visit] = field(default_factory=list)
-    created: datetime = field(default_factory=datetime.now)
-
+from tiny_trails.endpoints.common.models import Trail
 
 in_memory_trails: dict[str, Trail] = {}
 TRAIL_ID_ALPHABET = ascii_lowercase + ascii_uppercase
