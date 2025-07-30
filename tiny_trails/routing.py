@@ -3,6 +3,10 @@ from starlette.responses import PlainTextResponse, RedirectResponse
 
 
 def assign_routes(app: FastAPI):
+    """
+    Assign all the routes with documentation to the FastAPI application.
+    """
+
     from tiny_trails.endpoints import delete, info, pave, peek, ping, traverse
 
     app.add_api_route(

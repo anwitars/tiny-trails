@@ -1,27 +1,40 @@
 from datetime import datetime
 
 from fastapi import Request
+from sqlalchemy import select
 from starlette.responses import RedirectResponse
 
 from tiny_trails.endpoints.common import (
     TrailNotFoundOrExpiredError,
-    Visit,
     get_ip_from_request,
     hash_ip,
 )
-
-from .shorten_resolver import in_memory_trails
+from tiny_trails.middlewares.context import get_context_from_request
 
 
 async def resolver(trail_id: str, request: Request):
+    """
+    Traverse a Trail by its ID, leaving a Visit on the Trail. The user gets redirected to the Trail's URL.
+    """
+
+    from tiny_trails.tables import Trail, Visit
+
+    context = get_context_from_request(request)
     now = datetime.now()
-    trail = in_memory_trails.get(trail_id)
 
-    if trail is None or trail.is_expired(reference=now):
-        raise TrailNotFoundOrExpiredError()
+    async with context.db.session_scope() as session:
+        trail = await session.execute(select(Trail).where(Trail.trail_id == trail_id))
+        trail = trail.scalar_one_or_none()
 
-    if ip := get_ip_from_request(request):
-        visit = Visit(hashed_ip=hash_ip(ip), created=now)
-        in_memory_trails[trail_id].visits.append(visit)
+        if trail is None or trail.is_expired(reference=now):
+            raise TrailNotFoundOrExpiredError()
 
-    return RedirectResponse(trail.url, status_code=302)
+        if ip := get_ip_from_request(request):
+            visit = Visit(hashed_ip=hash_ip(ip), created_at=now, trail_id=trail.id)
+            session.add(visit)
+
+        trail_url = trail.url
+
+        await session.commit()
+
+    return RedirectResponse(trail_url, status_code=302)

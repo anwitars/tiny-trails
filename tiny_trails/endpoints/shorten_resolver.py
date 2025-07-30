@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from string import ascii_lowercase, ascii_uppercase
 
+from fastapi import Request
 from pydantic import BaseModel, Field, HttpUrl
 
 from tiny_trails.endpoints.common import (
@@ -8,24 +8,8 @@ from tiny_trails.endpoints.common import (
     TRAIL_MAXIMUM_LIFETIME,
     TRAIL_MINIMUM_LIFETIME,
     Hours,
-    Trail,
 )
-
-in_memory_trails: dict[str, Trail] = {}
-TRAIL_ID_ALPHABET = ascii_lowercase + ascii_uppercase
-
-
-def encode_base52(num: int) -> str:
-    if num == 0:
-        return TRAIL_ID_ALPHABET[0]
-
-    base52 = []
-
-    while num > 0:
-        num, remainder = divmod(num, 52)
-        base52.append(TRAIL_ID_ALPHABET[remainder])
-
-    return "".join(reversed(base52))
+from tiny_trails.middlewares.context import get_context_from_request
 
 
 class PaveInput(BaseModel):
@@ -49,21 +33,29 @@ class PaveResponse:
     )
 
 
-async def resolver(pave_input: PaveInput) -> PaveResponse:
+async def resolver(pave_input: PaveInput, request: Request) -> PaveResponse:
     """
     Paves a Trail for the given URL.
     """
+    from tiny_trails.tables import Trail
 
-    trail_sequence_id = len(in_memory_trails)
-    trail_id = encode_base52(trail_sequence_id)
-    trail = Trail(
-        url=str(pave_input.url),
-        lifetime=pave_input.lifetime,
-    )
-    in_memory_trails[trail_id] = trail
+    context = get_context_from_request(request)
+
+    async with context.db.session_scope() as session:
+        trail = Trail(
+            url=str(pave_input.url),
+            lifetime=pave_input.lifetime,
+        )
+        session.add(trail)
+        await session.flush()
+        await session.refresh(trail)
+
+        trail_id, trail_token = trail.trail_id, trail.token
+
+        await session.commit()
 
     return PaveResponse(
         trail_id=trail_id,
         message=f"Trail paved successfully with ID: {trail_id}",
-        token=trail.token,
+        token=trail_token,
     )

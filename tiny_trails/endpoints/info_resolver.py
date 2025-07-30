@@ -1,35 +1,66 @@
-from dataclasses import dataclass
+from fastapi import Request
+from pydantic import BaseModel, Field
+from sqlalchemy import distinct, func, select
 
 from tiny_trails.endpoints.common.errors import TrailNotFoundOrExpiredError
-
-from .shorten_resolver import in_memory_trails
-
-
-@dataclass(frozen=True, eq=False)
-class TrailVisitInfo:
-    all: int
-    unique: int
+from tiny_trails.middlewares.context import get_context_from_request
 
 
-@dataclass(frozen=True, eq=False)
-class TrailInfo:
-    id: str
-    url: str
-    visits: TrailVisitInfo
-    created: str
-
-
-async def resolver(trail_id: str) -> TrailInfo:
-    trail = in_memory_trails.get(trail_id)
-    if trail is None or trail.is_expired():
-        raise TrailNotFoundOrExpiredError()
-
-    all_visits = len(trail.visits)
-    unique_visits = len(set(visit.hashed_ip for visit in trail.visits))
-
-    return TrailInfo(
-        id=trail_id,
-        url=trail.url,
-        visits=TrailVisitInfo(all=all_visits, unique=unique_visits),
-        created=trail.created.isoformat(),
+class TrailVisitInfo(BaseModel):
+    all: int = Field(
+        description="The total number of visits to the Trail, including both unique and non-unique visits."
     )
+    unique: int = Field(
+        description="The number of unique visits to the Trail, based on distinct hashed IP addresses."
+    )
+
+
+class TrailInfo(BaseModel):
+    id: str = Field(description="The unique identifier of the Trail.")
+    url: str = Field(description="The URL associated with the Trail.")
+    visits: TrailVisitInfo = Field(
+        description="Information about visits to the Trail, including total and unique visits."
+    )
+    created: str = Field(
+        description="The timestamp when the Trail was created, in ISO 8601 format."
+    )
+
+
+async def resolver(trail_id: str, request: Request) -> TrailInfo:
+    """
+    Retrieve information about a trail by its ID. See return schema for details.
+    """
+
+    from tiny_trails.tables import Trail, Visit
+    from tiny_trails.tables.trails import is_trail_expired
+
+    context = get_context_from_request(request)
+    async with context.db.session_scope() as session:
+        dbres = await session.execute(
+            select(
+                Trail.created_at,
+                Trail.lifetime,
+                Trail.url,
+                func.count(Visit.id),
+                func.count(distinct(Visit.hashed_ip)),
+            )
+            .where(Trail.trail_id == trail_id)
+            .join(Visit, Visit.trail_id == Trail.id, isouter=True)
+            .group_by(Trail.created_at, Trail.lifetime, Trail.url)
+        )
+        dbres = dbres.t.one_or_none()
+
+        if dbres is None:
+            raise TrailNotFoundOrExpiredError()
+
+        created_at, lifetime, url, all_visits, unique_visits = dbres
+
+        if is_trail_expired(created_at, lifetime):
+            raise TrailNotFoundOrExpiredError()
+
+        return TrailInfo(
+            id=trail_id,
+            url=url,
+            visits=TrailVisitInfo(all=all_visits, unique=unique_visits),
+            created=created_at.isoformat(),
+        )
