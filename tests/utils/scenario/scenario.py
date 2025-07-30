@@ -1,5 +1,4 @@
 from datetime import datetime
-from types import EllipsisType
 
 from sqlalchemy.orm import Session
 
@@ -12,6 +11,13 @@ from tiny_trails.endpoints.common.models import (
     TRAIL_MINIMUM_LIFETIME,
 )
 from tiny_trails.tables.trails import Trail
+
+
+class _Unset:
+    pass
+
+
+_UNSET = _Unset()
 
 
 class Scenario(ScenarioSessionScopeMixin):
@@ -32,7 +38,7 @@ class Scenario(ScenarioSessionScopeMixin):
         url: str | None = None,
         token: str | None = None,
         created_at: datetime | None = None,
-        lifetime: int | None | EllipsisType = None,
+        lifetime: int | None | _Unset = _UNSET,
         session: Session | None = None,
     ) -> ScenarioTrail:
         data = Trail(
@@ -46,7 +52,7 @@ class Scenario(ScenarioSessionScopeMixin):
             data.created_at = created_at
 
         if lifetime is not None:
-            if lifetime is ...:
+            if isinstance(lifetime, _Unset):
                 from random import randint
 
                 lifetime = randint(

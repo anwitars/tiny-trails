@@ -1,0 +1,7 @@
+repos:
+-   repo: local
+    hooks:
+      - name: pyright
+        id: pyright
+        language: script
+        entry: '/bin/bash -c "pyright"'
