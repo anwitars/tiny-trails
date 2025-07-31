@@ -41,5 +41,35 @@ def serve(host: str, port: int, prod: bool, reload: bool, file: str | None):
     )
 
 
+@cli.command()
+@click.option(
+    "--output",
+    default="docs/openapi.json",
+    help="Output file for OpenAPI docs.",
+)
+def generate_docs(output: str):
+    """
+    Generate OpenAPI documentation and save it to a file.
+    """
+
+    import json
+
+    from fastapi.openapi.utils import get_openapi
+
+    from tiny_trails.app import app
+
+    with open(output, "w") as f:
+        json.dump(
+            get_openapi(
+                title=app.title,
+                version=app.version,
+                description=app.description,
+                routes=app.routes,
+            ),
+            f,
+            indent=2,
+        )
+
+
 if __name__ == "__main__":
     cli()
