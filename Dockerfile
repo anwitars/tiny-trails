@@ -24,4 +24,4 @@ COPY --from=builder /build/dist/*.whl /tmp/
 RUN python -m pip install --upgrade pip
 RUN python -m pip install /tmp/*.whl
 
-CMD ["tiny-trails", "serve", "--prod", "--host", "0.0.0.0", "--file", "/usr/local/lib/python3.12/site-packages/tiny_trails/app.py"]
+CMD ["tiny-trails", "serve", "--host", "0.0.0.0"]

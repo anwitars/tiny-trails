@@ -1,17 +1,28 @@
-"""
-This file will be executed by the FastAPI server to start the application.
-"""
-
 from fastapi import FastAPI
 
 from tiny_trails.database import PostgresDatabase
-from tiny_trails.env import get_env
 from tiny_trails.middlewares import create_middlewares
 from tiny_trails.routing import assign_routes
 
-db_url = get_env("DB")
-db = PostgresDatabase(url=db_url)
 
-app = FastAPI(middleware=create_middlewares(db))
+def create_app(*, db_url: str) -> FastAPI:
+    """
+    Create a FastAPI application instance with middlewares and routes.
+    """
 
-assign_routes(app)
+    db = PostgresDatabase(url=db_url)
+    app = FastAPI(middleware=create_middlewares(db))
+    assign_routes(app)
+
+    return app
+
+
+def create_app_for_docs() -> FastAPI:
+    """
+    Create a FastAPI application instance for generating OpenAPI documentation.
+    This instance does not include middlewares or database connections.
+    """
+
+    app = FastAPI()
+    assign_routes(app)
+    return app
