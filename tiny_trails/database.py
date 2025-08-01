@@ -37,7 +37,6 @@ class PostgresDatabase(Database):
     def _create_engine(url: str) -> AsyncEngine:
         return create_async_engine(
             url,
-            echo=True,
             future=True,
         )
 

@@ -8,17 +8,16 @@ from tiny_trails.tables.base import Base
 
 config = context.config
 
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+fileConfig(config.file_config)
 
 target_metadata = Base.metadata
 
 
 def _get_db_url() -> str:
-    # NOTE: When running tests, we can not pass x arguments to alembic (or neither can we set env variables),
+    # NOTE: When running tests or cli, we can not pass x arguments to alembic (or neither can we set env variables),
     # therefore using a tag argument to determine if we are running tests or not.
     # If it is set to "test", we will use the database URL from alembic.ini which gets overriden by the test setup.
-    if context.get_tag_argument() == "test":
+    if context.get_tag_argument() in {"test", "cli"}:
         url = config.get_main_option("sqlalchemy.url")
         assert (
             url is not None

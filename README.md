@@ -76,6 +76,7 @@ Get information about a [Trail](#trail) by its ID. For further information, see 
 
 - Python 3.12 or higher (Probably the minimum version is 3.11 (due to `Self` type), but I have not tested it.)
 - PostgreSQL (not sure about versions, but 15 and above works just fine)
+  - The application will migrate the database schema on startup, unless `--apply-migrations=false` is provided.
 - [Poetry](https://python-poetry.org/) for project and dependency management
 - Docker (optional, for running the service in a container)
 
