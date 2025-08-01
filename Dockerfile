@@ -12,7 +12,7 @@ RUN apk add --no-cache \
 RUN python -m pip install --upgrade pip
 RUN pip install poetry==2.1.3
 
-COPY pyproject.toml poetry.lock alembic.ini ./
+COPY pyproject.toml poetry.lock alembic.ini LICENSE README.md ./
 COPY tiny_trails/ tiny_trails/
 
 RUN poetry build -f wheel
