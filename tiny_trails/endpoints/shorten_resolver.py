@@ -56,6 +56,6 @@ async def resolver(pave_input: PaveInput, request: Request) -> PaveResponse:
 
     return PaveResponse(
         trail_id=trail_id,
-        message=f"Trail paved successfully with ID: {trail_id}",
+        message="Trail paved successfully",
         token=trail_token,
     )
