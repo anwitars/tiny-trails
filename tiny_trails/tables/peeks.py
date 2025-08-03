@@ -1,8 +1,10 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, text
+from sqlalchemy import TIMESTAMP, ForeignKey, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from tiny_trails.utils import utc_now
 
 from .base import Base
 
@@ -16,7 +18,8 @@ class Peek(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, init=False)
     trail_id: Mapped[int] = mapped_column(ForeignKey("trails.id", ondelete="CASCADE"))
     created_at: Mapped[datetime] = mapped_column(
-        default_factory=datetime.now,
+        TIMESTAMP(timezone=True),
+        default_factory=utc_now,
         server_default=text("now()"),
     )
 

@@ -22,7 +22,7 @@ class TrailInfo(BaseModel):
         description="Information about visits to the Trail, including total and unique visits."
     )
     created: str = Field(
-        description="The timestamp when the Trail was created, in ISO 8601 format."
+        description="The UTC timestamp when the Trail was created, in ISO 8601 format."
     )
 
 

@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from fastapi import Request
 from sqlalchemy import select
 from starlette.responses import RedirectResponse
@@ -10,6 +8,7 @@ from tiny_trails.endpoints.common import (
     hash_ip,
 )
 from tiny_trails.middlewares.context import get_context_from_request
+from tiny_trails.utils import utc_now
 
 
 async def resolver(trail_id: str, request: Request):
@@ -20,7 +19,7 @@ async def resolver(trail_id: str, request: Request):
     from tiny_trails.tables import Trail, Visit
 
     context = get_context_from_request(request)
-    now = datetime.now()
+    now = utc_now()
 
     async with context.db.session_scope() as session:
         trail = await session.execute(select(Trail).where(Trail.trail_id == trail_id))

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import VARCHAR, text
+from sqlalchemy import TIMESTAMP, VARCHAR, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from tiny_trails.endpoints.common.models import (
@@ -8,6 +8,7 @@ from tiny_trails.endpoints.common.models import (
     TRAIL_TOKEN_LENGTH,
     Hours,
 )
+from tiny_trails.utils import utc_now
 
 from .base import Base
 
@@ -17,9 +18,7 @@ def is_trail_expired(
     lifetime: Hours,
     reference: datetime | None = None,
 ) -> bool:
-    return (
-        (reference or datetime.now()) - created_at
-    ).total_seconds() > lifetime * 3600
+    return ((reference or utc_now()) - created_at).total_seconds() > lifetime * 3600
 
 
 class Trail(Base):
@@ -50,7 +49,8 @@ class Trail(Base):
         server_default=text(str(TRAIL_DEFAULT_LIFETIME)),
     )
     created_at: Mapped[datetime] = mapped_column(
-        default_factory=datetime.now,
+        TIMESTAMP(timezone=True),
+        default_factory=utc_now,
         server_default=text("now()"),
     )
 
