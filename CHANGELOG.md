@@ -1,3 +1,8 @@
-v0.1.0 (2025-07-31)
+v0.2.0 (2025-08-03)
 -------------------
-**Initial Release**
+enhancements:
+- cli: run alembic migrations on startup
+
+fixes:
+- api: all timestamps are utc+00 from now on
+- api: removed redundant information in pave result json
