@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "FastAPI",
-    "version": "0.1.0"
+    "version": "0.2.1"
   },
   "paths": {
     "/ping": {
@@ -292,7 +292,7 @@
           "created": {
             "type": "string",
             "title": "Created",
-            "description": "The timestamp when the Trail was created, in ISO 8601 format."
+            "description": "The UTC timestamp when the Trail was created, in ISO 8601 format."
           }
         },
         "type": "object",
