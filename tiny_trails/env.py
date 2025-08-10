@@ -1,6 +1,14 @@
 ENVIRONMENT_PREFIX = "TINY_TRAILS_"
 """The application prefix."""
 
+APPLICATION_PKG_NAME = "tiny_trails"
+
+
+def get_pkg_file(path: str) -> str:
+    from importlib.resources import files
+
+    return str(files(APPLICATION_PKG_NAME).joinpath(path))
+
 
 def get_env(key: str) -> str:
     """

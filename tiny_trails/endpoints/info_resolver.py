@@ -24,6 +24,7 @@ class TrailInfo(BaseModel):
     created: str = Field(
         description="The UTC timestamp when the Trail was created, in ISO 8601 format."
     )
+    lifetime: int = Field(description="The lifetime of the Trail in hours.")
 
 
 async def resolver(trail_id: str, request: Request) -> TrailInfo:
@@ -63,4 +64,5 @@ async def resolver(trail_id: str, request: Request) -> TrailInfo:
             url=url,
             visits=TrailVisitInfo(all=all_visits, unique=unique_visits),
             created=created_at.isoformat(),
+            lifetime=lifetime,
         )

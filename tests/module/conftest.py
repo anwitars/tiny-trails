@@ -9,7 +9,7 @@ from tests.utils.async_db import AsyncDatabase
 from tests.utils.scenario.scenario import Scenario
 from tests.utils.string import random_string
 from tests.utils.sync_db import SyncDatabase
-from tiny_trails.env import get_env
+from tiny_trails.env import get_env, get_pkg_file
 from tiny_trails.middlewares import create_middlewares
 from tiny_trails.middlewares.context import Database
 
@@ -62,7 +62,7 @@ def test_db_url():
 
     test_url = f"{base_url}/{db_name}"
 
-    config = Config("alembic.ini")
+    config = Config(get_pkg_file("alembic.ini"))
     config.set_main_option("sqlalchemy.url", test_url)
     command.upgrade(config, "heads", tag="test")
 

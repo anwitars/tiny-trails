@@ -67,7 +67,9 @@ def serve(
         from alembic.command import upgrade
         from alembic.config import Config as AlembicConfig
 
-        alembic_cfg = AlembicConfig("alembic.ini")
+        from tiny_trails.env import get_pkg_file
+
+        alembic_cfg = AlembicConfig(get_pkg_file("alembic.ini"))
         alembic_cfg.set_main_option("sqlalchemy.url", db)
         alembic_cfg.set_section_option("logger_alembic", "level", "WARNING")
         upgrade(alembic_cfg, "heads", tag="cli")
