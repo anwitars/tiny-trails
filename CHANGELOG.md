@@ -1,4 +1,5 @@
-v0.2.1 (2025-08-03)
+v0.2.2 (2025-08-10)
 -------------------
 fixes:
-- api: cors issues when trying to reach the service
+- fixed alembic issues in docker
+- generate openapi docs with correct version of the application
