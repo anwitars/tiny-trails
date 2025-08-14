@@ -7,7 +7,7 @@ def assign_routes(app: FastAPI):
     Assign all the routes with documentation to the FastAPI application.
     """
 
-    from tiny_trails.endpoints import delete, info, pave, peek, ping, traverse
+    from tiny_trails.endpoints import delete, info, pave, peek, ping, traverse, version
 
     app.add_api_route(
         "/ping",
@@ -15,6 +15,14 @@ def assign_routes(app: FastAPI):
         methods=["GET"],
         response_class=PlainTextResponse,
         summary="Responds with 'pong'",
+    )
+
+    app.add_api_route(
+        "/version",
+        version,
+        methods=["GET"],
+        response_class=PlainTextResponse,
+        summary="Get API Version",
     )
 
     app.add_api_route("/pave", pave, methods=["POST"], summary="Pave Trail")

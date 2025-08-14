@@ -24,6 +24,25 @@
         }
       }
     },
+    "/version": {
+      "get": {
+        "summary": "Get API Version",
+        "description": "Returns a plain text response with the API version.",
+        "operationId": "resolver_version_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pave": {
       "post": {
         "summary": "Pave Trail",
