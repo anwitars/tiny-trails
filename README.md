@@ -1,129 +1,186 @@
-# Tiny Trails
+# Trails
 
-Just another URL shortener service. Built for fun and learning purposes, and also to be used in portfolio.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/anwitars/tiny-trails/blob/master/LICENSE)
+![Python Version](https://img.shields.io/badge/Python-3.12+-blue)
+![Docker](https://img.shields.io/badge/Docker-available-blue)
+[![API Docs](https://img.shields.io/badge/API%20Docs-online-brightgreen)](https://api.trls.link/docs)
 
-## Why Python?
+**A transparent URL shortener API with no accounts, no tracking, and no paywalls.** Public API available at [api.trls.link](https://api.trls.link/docs).
 
-Most of my professional programming experience is in Python, and I had no public projects before. I though that is would be convenient to use Python for this project, so I can show my skills in it, and also because it is fast to develop in Python. My free time is limited, so I wanted to make something that I can finish in a reasonable time.
+## 🚀 Quick Start
 
-## Features
+Shorten a URL:
 
-- Shorten URLs
+```sh
+curl -X POST https://api.trls.link/pave -H "Content-Type: application/json" \
+  -d '{"url": "https://google.com"}'
+```
 
-And that's it. Do one thing and do it well. But other than just shortening them, it also provides very simple telemetrics to see how many times the shortened URL was accessed, both unique and total.
+You will receive a JSON response containing a `trail_id`.
+Open it in your browser: `https://api.trls.link/t/{trail_id}`
+You will be redirected to the original URL — and a [visit](#visit) will be counted.
 
-## Terminology
+## ✨ Features
+
+It shortens URLs. That's it — but with a twist:
+- **No accounts, no tiers** — everything is available for free, no sign-up required.
+- **Peek before you click (if you wish to)** — see the destination URL without being redirected first.
+- **Privacy first** — no IP storage, only hashed values for visit counting.
+- **Simple, predictable API** — easy to integrate everywhere.
+
+## 🐍 Why Python?
+
+- Fast to develop and iterate on.
+- I know it best — fewer bugs, faster features.
+- If Trails grows, I might rewrite it in a more performant language.
+
+## 📖 Terminology
 
 ### Trail
 
-A shortened URL. A [Token](#token) is generated for each Trail.
+A shortened URL. Each Trail has its own [Token](#token).
 
 #### Trail Lifetime
 
-A [Trail](#trail) is created with a lifetime provided by the user or defaulting to 3 days. The lifetime is the number of hours the Trail lives for from the time of it has been created. After the lifetime expires, the Trail can not be accessed anymore, not even with its [Token](#token).
+Set by the user or defaulting to 3 days. After expiry, the [Trail](#trail) will be inaccessible, even with its [Token](#token).
 
 #### Token
 
-A unique identifier used to access restricted information and/or operations on a [Trail](#trail) by providing `X-Trail-Token` header in the request. All Trails have a unique Token, and can not be customized by the user.
+Unique secret key for managing a [Trail](#trail). Sent via `X-Trail-Token` header.
 
 ### Visit
 
-An access to a [Trail](#trail). A Visit is counted every time the Trail is accessed via the [traverse](#traverse-endpoint) endpoint. A Visit counts as unique if the [hashed IP address](#hashed-ip) of the visitor is not already recorded for the Trail.
+A redirect through a [Trail's](#trail) [traverse](#traverse-endpoint-get) endpoint. Counts as **unique** if the hashed IP has not visited before.
 
 ### Peek
 
-A Peek is a special kind of [Visit](#visit) that is counted when the [Trail](#trail) is accessed via the [peek](#peek-endpoint) endpoint. A Peek does not count as a Visit, and does not increase the visit count of the Trail. It is used to check if a Trail exists and/or to see the underlying URL of the Trail without being redirected to it.
+View the original URL without redirecting. Does not count as a [Visit](#visit).
 
 ### Hashed IP
 
-A hashed version of the IP address of the visitor. It is used to count unique [Visits](#visit) to a [Trail](#trail). The hashing is done using SHA-256, and the resulting hash is stored in the database. This way, the original IP address is not stored, but it can still be used to check if a Visit is unique.
+SHA-256 hash of the visitor’s IP, stored only for uniqueness checks.
 
-## Features
+## 📡 Endpoints
 
-It shortens URLs, and that's it. It does one thing, but tries to be as transparent as possible, with as little telemetry as possible.
-
-## Endpoints
-
-The following endpoint documentations are simplified, and do not include all possible inputs, responses and errors. Please refer to the source code or the [OpenAPI documentation](https://github.com/anwitars/tiny-trails/blob/master/docs/openapi.json) for more details.
+*This is a quick reference. Full details in [OpenAPI Spec](https://github.com/anwitars/tiny-trails/blob/master/docs/openapi.json)*
 
 ### /ping GET <a name="ping-endpoint"></a>
 
-Check if the service is running. Returns a simple "pong" response.
+Check service status.
+
+```sh
+curl https://api.trls.link/ping
+
+# pong
+```
 
 ### /pave POST <a name="pave-endpoint"></a>
 
-Create a new [Trail](#trail) with a given URL and an optional lifetime.
+Create a new [Trail](#trail).
+
+```sh
+curl -X POST https://api.trls.link/pave -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com"}'
+
+# {"trail_id": "abc123", "url": "https://example.com", "token": "xyz789"}
+```
 
 ### /t/{trail_id} GET <a name="traverse-endpoint-get"></a>
 
-Traverse a [Trail](#trail) by its ID. This will redirect the user to the underlying URL of the Trail, and count a [Visit](#visit) for it.
+Redirect to original URL and count a [Visit](#visit).
+
+```sh
+curl -i https://api.trls.link/t/abc123
+
+# HTTP/1.1 302 Found
+# Location: https://example.com
+```
 
 ### /t/{trail_id} DELETE <a name="traverse-endpoint-delete"></a>
 
-Delete a [Trail](#trail) by its ID, making it inaccessible. Must also provide its [Token](#token) for authorization.
+Delete a [Trail](#trail) (requires [Token](#token)).
+
+```sh
+curl -X DELETE https://api.trls.link/t/abc123 -H "X-Trail-Token: xyz789"
+```
 
 ### /peek/{trail_id} GET <a name="peek-endpoint"></a>
 
-Peek a [Trail](#trail) by its ID. This will return the underlying URL of the Trail in plain text format, and will not count a [Visit](#visit) for it.
+Reveal the original URL without visiting.
+
+```sh
+curl https://api.trls.link/peek/abc123
+
+# https://example.com
+```
 
 ### /info/{trail_id} GET <a name="info-endpoint"></a>
 
-Get information about a [Trail](#trail) by its ID. For further information, see the [OpenAPI documentation](https://github.com/anwitars/tiny-trails/blob/master/docs/openapi.json)
+Get [Trail](#trail) info.
 
-## Installation
+```sh
+curl https://api.trls.link/info/abc123
+
+# {
+#    "id": "abc123",
+#    "url": "https://example.com",
+#    "visits": {
+#       "all": 10,
+#       "unique": 8,
+#    },
+#    "created": "2023-10-01T12:00:00Z",
+#    "lifetime": 72
+# }
+```
+
+## 🛠 Installation
 
 ### Requirements
 
-- Python 3.12 or higher (Probably the minimum version is 3.11 (due to `Self` type), but I have not tested it.)
-- PostgreSQL (not sure about versions, but 15 and above works just fine)
-  - The application will migrate the database schema on startup, unless `--apply-migrations=false` is provided.
+- **Python 3.12+** (Likely works on 3.11+)
+- **PostgreSQL 15+**
 - [Poetry](https://python-poetry.org/) for project and dependency management
-- Docker (optional, for running the service in a container)
+- Docker (optional, for self-hosting)
 
-### Setup
+### Local Setup
 
-1. Clone the repository
-2. Install the dependencies using Poetry:
-   ```bash
-   poetry install
-   ```
+```sh
+git clone https://github.com/anwitars/tiny-trails
+cd tiny-trails
+poetry install
+tiny-trails serve --host 0.0.0.0 --port 8000 \
+  --db postgresql://user:pass@localhost:5432/tiny_trails
+```
 
-   if you wish to only install runtime dependencies, use:
-   ```bash
-   poetry install --without=dev,test
-   ```
-3. Familiarize yourself with the cli tool:
-   ```bash
-   tiny-trails --help
-   ```
-4. Serve the service:
-   ```bash
-   tiny-trails serve --host 0.0.0.0 --port 8000 --db postgresql://user:password@localhost:5432/tiny_trails
-   ```
+Install runtime only dependencies:
+```sh
+poetry install --without=dev,test
+```
 
-### Docker
+CLI help:
+```sh
+tiny-trails --help
+```
+
+### 🐳 Docker
 
 You can also run the service in a Docker container.
 
 #### Build the image
 
-If you wish to build the image yourself, you can do so by running:
-```bash
+Build:
+```sh
 docker build -t tiny-trails . --load
+docker run -p 8000:8000 -e TINY_TRAILS_DB=... tiny-trails
 ```
 
-And that's it. You can then run the image with:
+Run Prebuilt:
+
 ```bash
-docker run -p 8000:8000 tiny-trails --env TINY_TRAILS_DB=...
+docker run -p 8000:8000 -e TINY_TRAILS_DB=... \
+  ghcr.io/anwitars/tiny-trails:latest
 ```
 
-#### Run prebuilt image
-
-If you wish to run the prebuilt image, you can do so by running:
-```bash
-docker run -p 8000:8000 ghcr.io/anwitars/tiny-trails:latest --env TINY_TRAILS_DB=...
-```
-
-## License
+## 📜 License
 
 The project is issued under [MIT license](https://github.com/anwitars/tiny-trails/blob/master/LICENSE).
