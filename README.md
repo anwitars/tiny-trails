@@ -28,6 +28,15 @@ It shortens URLs. That's it — but with a twist:
 - **Privacy first** — no IP storage, only hashed values for visit counting.
 - **Simple, predictable API** — easy to integrate everywhere.
 
+## 🗺️ Roadmap
+
+Since this project is in its early stages with scarce resources, the roadmap does not include estimated timelines. However, here are some planned features:
+
+- [ ] **Rate limiting** — prevent abuse by limiting the number of requests per IP.
+- [ ] **Better Analytics** — Visits are already stored with a timestamp, so more detailed time-based analytics could be added.
+- [ ] **Better Trail not found handling** — To avoid unnecessary traffic, Trails are resolved directly by the backend, and not the Frontend. This means that currently there is no nice 404 page, just a simple JSON response. Future versions could include a custom 404 page with more information and better UX.
+- [ ] **Dynamic Trails** — This could be a game-changing feature, as it would provide users dynamic Trails. Those Trails (unlike static or regular ones) could resolve to different URLs based on specific conditions. To keep transparency, the info and peek endpoints would also include a graph-based structure of the resolution. The web client would display it nicely. Also there would be limited number of destinations, to keep Trails simple, but offer some flexibility.
+
 ## 🐍 Why Python?
 
 - Fast to develop and iterate on.
