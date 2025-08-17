@@ -181,6 +181,12 @@ docker run -p 8000:8000 -e TINY_TRAILS_DB=... \
   ghcr.io/anwitars/tiny-trails:latest
 ```
 
+## Support
+
+If you see potential in this project, please consider supporting it by starring the repository or sharing it with others. Your support helps keep the project alive and encourages further development. To help me with financial support (keep the servers running, be able to dedicate more time to the project), consider buying me a coffee.
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/I2I31JU3LO)
+
 ## 📜 License
 
 The project is issued under [MIT license](https://github.com/anwitars/tiny-trails/blob/master/LICENSE).
